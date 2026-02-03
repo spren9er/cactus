@@ -57,9 +57,9 @@
 
   <p>
     This implementation includes several customizable parameters to control the
-    visual appearance and behavior of the tree layout. The demonstration dataset
-    represents the Flare ActionScript visualization library's software
-    architecture and dependency structure, originally featured in this
+    visual appearance and behavior of the tree layout. The demo dataset
+    represents the software architecture and dependency structure of the Flare
+    ActionScript visualization library, originally featured in this
     <a href="https://observablehq.com/@d3/hierarchical-edge-bundling"
       >Observable notebook</a
     >.
