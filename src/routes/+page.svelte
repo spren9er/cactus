@@ -8,8 +8,8 @@
   /** @type {Array<{source: string, target: string}>} */
   let links = [];
 
-  let width = 780;
-  let height = 780;
+  let width = 750;
+  let height = 750;
 
   let config = {
     overlap: 0.2,
@@ -40,24 +40,34 @@
 </svelte:head>
 
 <main class="container">
-  <h1>Cactus Tree Visualization</h1>
+  <h1>cactus</h1>
 
   <p>
-    <b>CactusTree</b> is a visualization technique for representing the
-    structure and connectivity in deeply nested trees. The current
-    implementation is based on the original paper
+    <i>CactusTree</i> is an advanced visualization technique designed to
+    represent complex hierarchical structures and their interconnections in
+    deeply nested trees. The Svelte library <b>cactus</b> is based on the
+    research paper
     <a href="https://ieeexplore.ieee.org/document/8031596">
-      <i>CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling</i>
+      CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling
     </a>
-    by Tommy Dang and Angus Forbes. See also
-    <a
-      href="https://cactustrees.github.io/"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      cactustrees.github.io
-    </a>
-    for official site about <b>CactusTree</b>.
+    by Tommy Dang and Angus Forbes. Additional information and resources are available
+    at the official
+    <a href="https://cactustrees.github.io/"> CactusTree website </a>.
+  </p>
+
+  <p>
+    This implementation includes several customizable parameters to control the
+    visual appearance and behavior of the tree layout. The demonstration dataset
+    represents the Flare ActionScript visualization library's software
+    architecture and dependency structure, originally featured in this
+    <a href="https://observablehq.com/@d3/hierarchical-edge-bundling"
+      >Observable notebook</a
+    >.
+  </p>
+
+  <p>
+    The Svelte library <b>cactus</b> can be found on
+    <a href="https://github.com/spren9er/cactus">GitHub</a>.
   </p>
 
   <div class="controls">
@@ -198,6 +208,7 @@
 <style>
   :global(html, body) {
     font-family: monospace;
+    font-size: 12px;
     background: #f9f9f9;
   }
 
@@ -212,10 +223,9 @@
   }
 
   p {
-    padding: 20px 150px;
+    padding: 4px 140px;
     text-align: left;
     color: #666;
-    margin-bottom: 30px;
     line-height: 1.5;
   }
 
@@ -225,14 +235,14 @@
   }
 
   .controls {
-    margin: 20px 80px;
+    margin: 20px 140px;
     margin-bottom: 40px;
     border-radius: 8px;
   }
 
   .control-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 25px;
   }
 
@@ -272,7 +282,6 @@
     gap: 8px;
     color: #555;
     cursor: pointer;
-    font-size: 14px;
   }
 
   .edge-bundling-control input[type='checkbox'] {
@@ -291,7 +300,7 @@
   .footer a {
     color: #333333;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .footer a:hover {
