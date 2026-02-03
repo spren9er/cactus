@@ -169,9 +169,16 @@
   }
 
   p {
+    padding: 20px;
     text-align: center;
     color: #666;
     margin-bottom: 30px;
+    line-height: 1.5;
+  }
+
+  p a,
+  p a:hover {
+    color: #333333;
   }
 
   .controls {
