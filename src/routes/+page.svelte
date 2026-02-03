@@ -5,8 +5,8 @@
   /** @type {Array<{id: string, name: string, parent: string|null}>} */
   let nodes = [];
 
-  let width = 800;
-  let height = 800;
+  let width = 780;
+  let height = 780;
 
   let config = {
     overlap: 0.2,
