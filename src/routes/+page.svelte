@@ -32,9 +32,14 @@
 
 <main class="container">
   <h1>Cactus Tree Visualization</h1>
+
   <p>
-    Interactive visualization of the Flare ActionScript library using the
-    CactusTree algorithm
+    Cactus Tree is a visualization technique for representing the structure and
+    connectivity in deeply nested trees. See <a
+      href="https://cactustrees.github.io/"
+      target="_blank"
+      rel="noopener noreferrer">cactustrees.github.io</a
+    > for more.
   </p>
 
   <div class="controls">
