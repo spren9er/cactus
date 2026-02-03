@@ -1,6 +1,7 @@
 <script>
-  import { CactusTree } from '$lib/cactusTree.js';
   import { SvelteSet, SvelteMap } from 'svelte/reactivity';
+
+  import { CactusLayout } from '$lib/cactusLayout.js';
 
   /** @type {{ nodes: Array<{id: string, name: string, parent: string|null, weight?: number}>, width?: number, height?: number, options?: {overlap?: number, arcSpan?: number, sizeGrowthRate?: number, orientation?: number, zoom?: number}, styles?: {fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, highlightFill?: string, highlightStroke?: string, highlight?: boolean, depths?: Array<{depth: number, fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, highlightFill?: string, highlightStroke?: string, highlight?: boolean}>}, pannable?: boolean, zoomable?: boolean }} */
   let {
@@ -41,11 +42,15 @@
 
   /** @type {HTMLCanvasElement} */
   let canvas;
+
   /** @type {CanvasRenderingContext2D|null} */
   let ctx = null;
+
   let devicePixelRatio = 1;
+
   /** @type {string|null} */
   let hoveredNodeId = null;
+
   /** @type {Array<{x: number, y: number, radius: number, node: any, isLeaf: boolean, depth: number}>} */
   let renderedNodes = [];
 
@@ -56,6 +61,8 @@
   let isDragging = false;
   let lastMouseX = 0;
   let lastMouseY = 0;
+
+  /** @type {number|null} */
   let animationFrameId = null;
 
   function setupCanvas() {
@@ -80,7 +87,7 @@
   function calculateLayout() {
     if (!nodes?.length) return;
 
-    const cactus = new CactusTree(
+    const cactus = new CactusLayout(
       width,
       height,
       mergedOptions.zoom,
@@ -393,8 +400,7 @@
     event.preventDefault();
   }
 
-  /** @param {MouseEvent} event */
-  function handleMouseUp(event) {
+  function handleMouseUp() {
     isDragging = false;
   }
 

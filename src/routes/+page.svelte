@@ -132,10 +132,6 @@
         labelFontFamily: 'monospace',
         depths: [
           {
-            depth: 0,
-            highlight: false,
-          },
-          {
             depth: -1,
             label: 'transparent',
             fill: '#333333',

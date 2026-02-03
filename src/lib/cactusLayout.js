@@ -1,6 +1,9 @@
 /**
+ * CactusLayout
+ *
+ * Based on the paper
  * CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling
- * Based on the paper by Tommy Dang and Angus Forbes
+ * by Tommy Dang and Angus Forbes
  *
  * This implementation renders hierarchical datasets using a fractal-based
  * technique that recursively stacks child nodes on parent nodes.
@@ -49,7 +52,7 @@
  * @property {number} radius - Child node radius
  */
 
-export class CactusTree {
+export class CactusLayout {
   /**
    * @param {number} width - Target width in pixels
    * @param {number} height - Target height in pixels
@@ -139,7 +142,7 @@ export class CactusTree {
   }
 
   /**
-   * Main CactusTree layout algorithm
+   * Main CactusLayout layout algorithm
    * @param {TreeNode} currentNode - The current node to draw
    * @param {number} x - X coordinate of the node center
    * @param {number} y - Y coordinate of the node center
@@ -147,7 +150,7 @@ export class CactusTree {
    * @param {((nodeData: NodeData) => void)|null} drawCallback - Callback function to draw circles
    * @param {number} depth - Current depth in the tree (0 = root)
    */
-  drawCactusTree(currentNode, x, y, alpha, drawCallback, depth = 0) {
+  drawCactusLayout(currentNode, x, y, alpha, drawCallback, depth = 0) {
     const childList = currentNode.children || [];
 
     const nodeWeight = this.weight(currentNode);
@@ -205,7 +208,7 @@ export class CactusTree {
       const x2 = x + distance * Math.cos(childAlpha);
       const y2 = y + distance * Math.sin(childAlpha);
 
-      this.drawCactusTree(child, x2, y2, childAlpha, drawCallback, depth + 1);
+      this.drawCactusLayout(child, x2, y2, childAlpha, drawCallback, depth + 1);
 
       childAlpha += angleSpan / 2;
     }
@@ -373,7 +376,7 @@ export class CactusTree {
     this.overlap = 0;
     this.arcSpan = Math.PI;
 
-    this.drawCactusTree(root, 0, 0, startAngle, null);
+    this.drawCactusLayout(root, 0, 0, startAngle, null);
 
     const bbox = this.calculateBoundingBox();
 
@@ -385,7 +388,7 @@ export class CactusTree {
     this.arcSpan = refArcSpan;
 
     this.nodes = [];
-    this.drawCactusTree(root, 0, 0, startAngle, null);
+    this.drawCactusLayout(root, 0, 0, startAngle, null);
 
     const scaledBBox = this.calculateBoundingBox();
     const offsetX =
@@ -456,5 +459,5 @@ export class CactusTree {
 
 // Export for use in different environments
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = CactusTree;
+  module.exports = CactusLayout;
 }
