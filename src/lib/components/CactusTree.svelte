@@ -57,6 +57,18 @@
   /** @type {Array<{x: number, y: number, radius: number, node: any, isLeaf: boolean, depth: number, angle: number}>} */
   let renderedNodes = [];
 
+  /** @type {SvelteMap<string, any>} */
+  let nodeIdToRenderedNodeMap = new SvelteMap();
+
+  /** @type {SvelteMap<number, any>} */
+  let depthStyleCache = new SvelteMap();
+
+  /** @type {SvelteMap<string, any[]>} */
+  let hierarchicalPathCache = new SvelteMap();
+
+  /** @type {SvelteMap<string, any[]>} */
+  let parentToChildrenNodeMap = new SvelteMap();
+
   /** @type {CactusLayout|null} */
   let cactusLayout = null;
 
@@ -70,6 +82,10 @@
 
   /** @type {number|null} */
   let animationFrameId = null;
+
+  // Drawing constants
+  const LEAF_LABEL_FONT_SIZE = 7;
+  const TEXT_PADDING = 2;
 
   function setupCanvas() {
     if (!canvas) return;
@@ -108,58 +124,100 @@
       height / 2,
       mergedOptions.orientation,
     );
+
+    // Build performance lookup maps after layout calculation
+    buildLookupMaps();
+  }
+
+  function buildLookupMaps() {
+    // Clear and rebuild node lookup map
+    nodeIdToRenderedNodeMap.clear();
+    renderedNodes.forEach((nodeData) => {
+      nodeIdToRenderedNodeMap.set(nodeData.node.id, nodeData);
+    });
+
+    // Clear and rebuild depth style cache
+    depthStyleCache.clear();
+    if (mergedStyle.depths) {
+      mergedStyle.depths.forEach((ds) => {
+        depthStyleCache.set(ds.depth, ds);
+      });
+    }
+
+    // Build parent-to-children node map for fast child lookup
+    parentToChildrenNodeMap.clear();
+    renderedNodes.forEach((nodeData) => {
+      const children = renderedNodes.filter(
+        (child) => child.node.parent === nodeData.node.id,
+      );
+      if (children.length > 0) {
+        parentToChildrenNodeMap.set(nodeData.node.id, children);
+      }
+    });
+
+    // Clear hierarchical path cache when layout changes
+    hierarchicalPathCache.clear();
+  }
+
+  /**
+   * @param {any} depthStyle
+   * @param {any} mergedStyle
+   * @param {string} property
+   */
+  function getEffectiveStyle(depthStyle, mergedStyle, property) {
+    return depthStyle?.[property] ?? mergedStyle[property];
+  }
+
+  function setupCanvasContext() {
+    if (!ctx) return;
+
+    ctx.save();
+    ctx.clearRect(0, 0, width, height);
+    ctx.translate(panX, panY);
+    ctx.scale(currentZoom, currentZoom);
+  }
+
+  function drawConnectingLines() {
+    if (mergedOptions.overlap >= 0 || !ctx) return;
+
+    renderedNodes.forEach((nodeData) => {
+      const { x, y, node, depth } = nodeData;
+      const children = parentToChildrenNodeMap.get(node.id) || [];
+
+      children.forEach((child) => {
+        const depthStyle = depthStyleCache.get(depth);
+        const currentLineWidth = getEffectiveStyle(
+          depthStyle,
+          mergedStyle,
+          'lineWidth',
+        );
+        const currentLineColor = getEffectiveStyle(
+          depthStyle,
+          mergedStyle,
+          'line',
+        );
+
+        if (currentLineWidth > 0 && currentLineColor !== 'none' && ctx) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(child.x, child.y);
+          ctx.strokeStyle = currentLineColor;
+          ctx.lineWidth = currentLineWidth;
+          ctx.stroke();
+        }
+      });
+    });
   }
 
   function draw() {
     if (!canvas || !ctx || !renderedNodes.length) return;
 
-    // Save the current context state
-    ctx.save();
+    setupCanvasContext();
+    drawConnectingLines();
 
-    // Clear the entire canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Apply pan and zoom transformations
-    ctx.translate(panX, panY);
-    ctx.scale(currentZoom, currentZoom);
-
-    // Draw connecting lines when overlap is negative
-    if (mergedOptions.overlap < 0 && ctx) {
-      renderedNodes.forEach((nodeData) => {
-        const { x, y, node, depth } = nodeData;
-
-        // Find children to draw lines to
-        const children = renderedNodes.filter((child) =>
-          nodes.find((n) => n.id === child.node.id && n.parent === node.id),
-        );
-
-        children.forEach((child) => {
-          // Determine line style (check depth styles first)
-          let depthStyle = null;
-          if (mergedStyle.depths) {
-            for (const ds of mergedStyle.depths) {
-              if (ds.depth === depth) {
-                depthStyle = ds;
-                break;
-              }
-            }
-          }
-
-          const currentLineWidth =
-            depthStyle?.lineWidth ?? mergedStyle.lineWidth;
-          const currentLineColor = depthStyle?.line ?? mergedStyle.line;
-
-          if (currentLineWidth > 0 && currentLineColor !== 'none' && ctx) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(child.x, child.y);
-            ctx.strokeStyle = currentLineColor;
-            ctx.lineWidth = currentLineWidth;
-            ctx.stroke();
-          }
-        });
-      });
-    }
+    // Collect visible node IDs from valid links for leaf label filtering
+    /** @type {SvelteSet<string>} */
+    const visibleNodeIds = new SvelteSet();
 
     // Build a map to identify leaves and calculate negative depths
     /** @type {SvelteSet<string>} */
@@ -167,9 +225,21 @@
     /** @type {SvelteMap<number, SvelteSet<string>>} */
     const negativeDepthNodes = new SvelteMap();
 
-    // Create node map and identify leaves
+    // Build parent-to-children map for faster lookups
+    /** @type {SvelteMap<string, string[]>} */
+    const parentToChildrenMap = new SvelteMap();
+    nodes.forEach((node) => {
+      if (node.parent) {
+        if (!parentToChildrenMap.has(node.parent)) {
+          parentToChildrenMap.set(node.parent, []);
+        }
+        parentToChildrenMap.get(node.parent)?.push(node.id);
+      }
+    });
+
+    // Identify leaves using the parent-children map
     renderedNodes.forEach(({ node }) => {
-      const hasChildren = nodes.some((n) => n.parent === node.id);
+      const hasChildren = parentToChildrenMap.has(node.id);
       if (!hasChildren) {
         leafNodes.add(node.id);
       }
@@ -182,13 +252,20 @@
     let currentLevelNodes = new SvelteSet(leafNodes);
     let depthLevel = -2;
 
+    // Build node id to node map for faster lookups
+    /** @type {SvelteMap<string, any>} */
+    const nodeIdMap = new SvelteMap();
+    nodes.forEach((node) => {
+      nodeIdMap.set(node.id, node);
+    });
+
     while (currentLevelNodes.size > 0) {
       /** @type {SvelteSet<string>} */
       const nextLevelNodes = new SvelteSet();
 
       // Get all direct parents of current level
       currentLevelNodes.forEach((nodeId) => {
-        const nodeData = nodes.find((n) => n.id === nodeId);
+        const nodeData = nodeIdMap.get(nodeId);
         if (nodeData && nodeData.parent) {
           nextLevelNodes.add(nodeData.parent);
         }
@@ -202,7 +279,7 @@
         const hasChildInSameLevel = Array.from(nextLevelNodes).some(
           (otherId) => {
             if (otherId === nodeId) return false;
-            const otherNodeData = nodes.find((n) => n.id === otherId);
+            const otherNodeData = nodeIdMap.get(otherId);
             return otherNodeData && otherNodeData.parent === nodeId;
           },
         );
@@ -233,15 +310,13 @@
       ) => {
         if (!ctx) return;
 
-        // Find applicable depth style
-        let depthStyle = null;
-        if (mergedStyle.depths) {
+        // Find applicable depth style using cache
+        let depthStyle = depthStyleCache.get(depth);
+
+        // Handle negative depths if no direct match
+        if (!depthStyle && mergedStyle.depths) {
           for (const ds of mergedStyle.depths) {
-            if (ds.depth === depth) {
-              depthStyle = ds;
-              break;
-            } else if (ds.depth < 0) {
-              // Handle negative depths using our calculated mappings
+            if (ds.depth < 0) {
               const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
               if (
                 nodesAtThisNegativeDepth &&
@@ -274,25 +349,39 @@
           ? (depthStyle?.highlightStroke ?? mergedStyle.highlightStroke)
           : currentStroke;
 
-        // Apply styling - skip if fill or stroke is 'none'
+        // Create circle path
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
 
+        // Batch fill operations
         if (finalFill !== 'none') {
-          ctx.globalAlpha = currentFillOpacity;
-          ctx.fillStyle = finalFill;
+          if (ctx.globalAlpha !== currentFillOpacity) {
+            ctx.globalAlpha = currentFillOpacity;
+          }
+          if (ctx.fillStyle !== finalFill) {
+            ctx.fillStyle = finalFill;
+          }
           ctx.fill();
         }
 
+        // Batch stroke operations
         if (finalStroke !== 'none' && currentStrokeWidth > 0) {
-          ctx.globalAlpha = currentStrokeOpacity;
-          ctx.strokeStyle = finalStroke;
-          ctx.lineWidth = currentStrokeWidth;
+          if (ctx.globalAlpha !== currentStrokeOpacity) {
+            ctx.globalAlpha = currentStrokeOpacity;
+          }
+          if (ctx.strokeStyle !== finalStroke) {
+            ctx.strokeStyle = finalStroke;
+          }
+          if (ctx.lineWidth !== currentStrokeWidth) {
+            ctx.lineWidth = currentStrokeWidth;
+          }
           ctx.stroke();
         }
 
-        // Reset alpha
-        ctx.globalAlpha = 1.0;
+        // Reset alpha only if changed
+        if (ctx.globalAlpha !== 1.0) {
+          ctx.globalAlpha = 1.0;
+        }
       },
     );
 
@@ -304,16 +393,15 @@
     if (links?.length && cactusLayout && ctx) {
       // First pass: collect all valid links and build hierarchical paths
       links.forEach((link) => {
-        const sourceNode = renderedNodes.find((n) => n.node.id === link.source);
-        const targetNode = renderedNodes.find((n) => n.node.id === link.target);
+        const sourceNode = nodeIdToRenderedNodeMap.get(link.source);
+        const targetNode = nodeIdToRenderedNodeMap.get(link.target);
 
         if (sourceNode && targetNode) {
           // Filter links based on hover state (only for leaf nodes)
           if (hoveredNodeId !== null) {
-            const hoveredNode = renderedNodes.find(
-              (n) => n.node.id === hoveredNodeId,
-            );
-            const isLeafNode = hoveredNode && hoveredNode.isLeaf;
+            const hoveredNode = nodeIdToRenderedNodeMap.get(hoveredNodeId);
+            const isLeafNode =
+              hoveredNode && !parentToChildrenNodeMap.has(hoveredNodeId);
 
             if (isLeafNode) {
               if (
@@ -325,67 +413,75 @@
             }
           }
 
-          // Build hierarchical path from source to target
-          const sourcePath = [];
-          const targetPath = [];
-
-          let current = sourceNode.node;
-          while (current) {
-            sourcePath.push(current);
-            current = current.parentRef;
-          }
-
-          current = targetNode.node;
-          while (current) {
-            targetPath.push(current);
-            current = current.parentRef;
-          }
-
-          // Find lowest common ancestor (closest to leaves)
+          // Build hierarchical path using cache
+          const cacheKey = `${link.source}-${link.target}`;
+          let hierarchicalPath = hierarchicalPathCache.get(cacheKey);
           let lca = null;
-          for (
-            let i = 0;
-            i < Math.min(sourcePath.length, targetPath.length);
-            i++
-          ) {
-            const sourceAncestor = sourcePath[sourcePath.length - 1 - i];
-            const targetAncestor = targetPath[targetPath.length - 1 - i];
-            if (sourceAncestor === targetAncestor) {
-              lca = sourceAncestor;
-            } else {
-              break;
+
+          if (!hierarchicalPath) {
+            // Build hierarchical path from source to target
+            const sourcePath = [];
+            const targetPath = [];
+
+            let current = sourceNode.node;
+            while (current) {
+              sourcePath.push(current);
+              current = current.parentRef;
             }
-          }
 
-          // Create hierarchical path: source -> ... -> lca -> ... -> target
-          const hierarchicalPath = [sourceNode.node];
-
-          // Add source path up to (but not including) LCA
-          const sourceLcaIndex = sourcePath.indexOf(lca);
-          if (sourceLcaIndex > 0) {
-            for (let i = 1; i < sourceLcaIndex; i++) {
-              hierarchicalPath.push(sourcePath[i]);
+            current = targetNode.node;
+            while (current) {
+              targetPath.push(current);
+              current = current.parentRef;
             }
-          }
 
-          // Add LCA if it exists and creates a meaningful bundle point
-          if (lca && lca !== sourceNode.node && lca !== targetNode.node) {
-            hierarchicalPath.push(lca);
-          }
-
-          // Add target path from LCA down to target (excluding LCA)
-          const targetLcaIndex = targetPath.indexOf(lca);
-          if (targetLcaIndex > 0) {
-            for (let i = targetLcaIndex - 1; i >= 0; i--) {
-              hierarchicalPath.push(targetPath[i]);
+            // Find lowest common ancestor (closest to leaves)
+            for (
+              let i = 0;
+              i < Math.min(sourcePath.length, targetPath.length);
+              i++
+            ) {
+              const sourceAncestor = sourcePath[sourcePath.length - 1 - i];
+              const targetAncestor = targetPath[targetPath.length - 1 - i];
+              if (sourceAncestor === targetAncestor) {
+                lca = sourceAncestor;
+              } else {
+                break;
+              }
             }
-          }
 
-          // Always add target node
-          if (
-            hierarchicalPath[hierarchicalPath.length - 1] !== targetNode.node
-          ) {
-            hierarchicalPath.push(targetNode.node);
+            // Create hierarchical path: source -> ... -> lca -> ... -> target
+            hierarchicalPath = [sourceNode.node];
+
+            // Add source path up to (but not including) LCA
+            const sourceLcaIndex = sourcePath.indexOf(lca);
+            if (sourceLcaIndex > 0) {
+              for (let i = 1; i < sourceLcaIndex; i++) {
+                hierarchicalPath.push(sourcePath[i]);
+              }
+            }
+
+            // Add LCA if it exists and creates a meaningful bundle point
+            if (lca && lca !== sourceNode.node && lca !== targetNode.node) {
+              hierarchicalPath.push(lca);
+            }
+
+            // Add target path from LCA down to target (excluding LCA)
+            const targetLcaIndex = targetPath.indexOf(lca);
+            if (targetLcaIndex > 0) {
+              for (let i = targetLcaIndex - 1; i >= 0; i--) {
+                hierarchicalPath.push(targetPath[i]);
+              }
+            }
+
+            // Always add target node
+            if (
+              hierarchicalPath[hierarchicalPath.length - 1] !== targetNode.node
+            ) {
+              hierarchicalPath.push(targetNode.node);
+            }
+
+            hierarchicalPathCache.set(cacheKey, hierarchicalPath);
           }
 
           validLinks.push({
@@ -400,10 +496,10 @@
 
       // Group links by shared path segments for bundling
       validLinks.forEach(({ sourceNode, targetNode, hierarchicalPath }) => {
-        // Convert hierarchical path to coordinates
+        // Convert hierarchical path to coordinates using lookup map
         const pathCoords = hierarchicalPath
           .map((/** @type {any} */ node) => {
-            const nodeData = renderedNodes.find((n) => n.node === node);
+            const nodeData = nodeIdToRenderedNodeMap.get(node.id);
             return nodeData ? { x: nodeData.x, y: nodeData.y } : null;
           })
           .filter((/** @type {any} */ coord) => coord !== null);
@@ -419,18 +515,22 @@
         const currentEdgeWidth = mergedStyle.edgeWidth;
 
         if (currentEdgeWidth > 0 && currentEdgeColor !== 'none' && ctx) {
-          ctx.strokeStyle = currentEdgeColor;
-          ctx.lineWidth = currentEdgeWidth;
+          // Set style only if different from current
+          if (ctx.strokeStyle !== currentEdgeColor) {
+            ctx.strokeStyle = currentEdgeColor;
+          }
+          if (ctx.lineWidth !== currentEdgeWidth) {
+            ctx.lineWidth = currentEdgeWidth;
+          }
+
+          ctx.beginPath();
 
           if (pathCoords.length === 2) {
             // Simple direct line
-            ctx.beginPath();
             ctx.moveTo(pathCoords[0]?.x ?? 0, pathCoords[0]?.y ?? 0);
             ctx.lineTo(pathCoords[1]?.x ?? 0, pathCoords[1]?.y ?? 0);
-            ctx.stroke();
           } else if (pathCoords.length > 2) {
             // Draw smooth curve through hierarchical path points
-            ctx.beginPath();
             ctx.moveTo(pathCoords[0]?.x ?? 0, pathCoords[0]?.y ?? 0);
 
             // Use quadratic curves between consecutive points
@@ -456,15 +556,12 @@
                 }
               }
             }
-            ctx.stroke();
           }
+          ctx.stroke();
         }
       });
     }
 
-    // Collect visible node IDs from valid links for leaf label filtering
-    /** @type {SvelteSet<string>} */
-    const visibleNodeIds = new SvelteSet();
     if (links?.length && validLinks.length) {
       validLinks.forEach(({ link }) => {
         visibleNodeIds.add(link.source);
@@ -534,16 +631,14 @@
           const text = String(node.name || node.id);
 
           if (shouldShowLeafLabel) {
-            // For leaf nodes: use font size 7 and position text outside circle with rotation
-            const fontSize = 7;
+            // For leaf nodes: use font size and position text outside circle with rotation
+            const fontSize = LEAF_LABEL_FONT_SIZE;
             ctx.fillStyle = currentLabel;
             ctx.font = `${fontSize}px ${currentLabelFontFamily}`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
 
             // Calculate position outside the circle with proper padding
-            const textPadding = 2; // 1-2px padding as requested
-            const textDistance = radius + textPadding;
 
             // Determine if text is on left half (angle between 90° and 270°)
             const normalizedAngle =
@@ -553,8 +648,8 @@
               normalizedAngle < (3 * Math.PI) / 2;
 
             // Calculate base position at circle edge + padding
-            const baseX = x + textDistance * Math.cos(angle);
-            const baseY = y + textDistance * Math.sin(angle);
+            const baseX = x + (radius + TEXT_PADDING) * Math.cos(angle);
+            const baseY = y + (radius + TEXT_PADDING) * Math.sin(angle);
 
             // Save context for rotation
             ctx.save();
@@ -623,20 +718,36 @@
       cancelAnimationFrame(animationFrameId);
     }
     animationFrameId = requestAnimationFrame(() => {
-      draw();
+      render();
       animationFrameId = null;
     });
   }
 
-  $effect(() => {
-    render();
+  // Use $derived to create a reactive trigger for rendering
+  const shouldRender = $derived.by(() => {
+    // Track all the dependencies that should trigger a re-render
+    const hasData = nodes?.length > 0;
+    const deps = {
+      width,
+      height,
+      nodesLength: nodes?.length || 0,
+      linksLength: links?.length || 0,
+      overlap: mergedOptions.overlap,
+      arcSpan: mergedOptions.arcSpan,
+      sizeGrowthRate: mergedOptions.sizeGrowthRate,
+      orientation: mergedOptions.orientation,
+      zoom: mergedOptions.zoom,
+      fill: mergedStyle.fill,
+      stroke: mergedStyle.stroke,
+      strokeWidth: mergedStyle.strokeWidth,
+    };
+
+    return hasData ? deps : null;
   });
 
-  // Re-render when links change
+  // Single $effect that responds to the derived reactive state
   $effect(() => {
-    if (links) {
-      scheduleRender();
-    }
+    if (shouldRender) scheduleRender();
   });
 
   /** @param {MouseEvent} event */
@@ -713,7 +824,7 @@
 
   /** @param {WheelEvent} event */
   function handleWheel(event) {
-    if (!zoomable) return;
+    if (!zoomable || !canvas) return;
 
     event.preventDefault();
 
@@ -722,9 +833,9 @@
     const mouseY = event.clientY - rect.top;
 
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(5, currentZoom * zoomFactor));
+    const newZoom = Math.max(0.1, Math.min(5.0, currentZoom * zoomFactor));
 
-    // Zoom towards mouse position
+    // Adjust pan to zoom towards mouse position
     const zoomRatio = newZoom / currentZoom;
     panX = mouseX - (mouseX - panX) * zoomRatio;
     panY = mouseY - (mouseY - panY) * zoomRatio;
