@@ -27,6 +27,7 @@
  * @property {TreeNode} node - Reference to original tree node
  * @property {boolean} isLeaf - Whether this is a leaf node
  * @property {number} depth - Depth in hierarchy (0 = root)
+ * @property {number} angle - Angle in radians (direction from parent to this node)
  */
 
 /**
@@ -177,6 +178,7 @@ export class CactusLayout {
       node: currentNode,
       isLeaf: childList.length === 0,
       depth: depth,
+      angle: alpha,
     };
 
     this.nodes.push(nodeData);

@@ -54,7 +54,7 @@
   /** @type {string|null} */
   let hoveredNodeId = null;
 
-  /** @type {Array<{x: number, y: number, radius: number, node: any, isLeaf: boolean, depth: number}>} */
+  /** @type {Array<{x: number, y: number, radius: number, node: any, isLeaf: boolean, depth: number, angle: number}>} */
   let renderedNodes = [];
 
   /** @type {CactusLayout|null} */
@@ -177,6 +177,12 @@
 
     // Calculate negative depth mappings
     negativeDepthNodes.set(-1, new SvelteSet(leafNodes));
+
+    // Debug logging
+    console.log(
+      `Total nodes: ${renderedNodes.length}, Leaf nodes: ${leafNodes.size}`,
+      Array.from(leafNodes),
+    );
 
     /** @type {SvelteSet<string>} */
     let currentLevelNodes = new SvelteSet(leafNodes);
@@ -465,12 +471,14 @@
     // Third pass: Draw labels on top
     renderedNodes.forEach(
       (
-        /** @type {{ x: number, y: number, radius: number, node: any, depth: number }} */ {
+        /** @type {{ x: number, y: number, radius: number, node: any, depth: number, angle: number, isLeaf: boolean }} */ {
           x,
           y,
           radius,
           node,
           depth,
+          angle,
+          isLeaf,
         },
       ) => {
         if (!ctx) return;
@@ -500,27 +508,95 @@
         const currentLabelFontFamily =
           depthStyle?.labelFontFamily ?? mergedStyle.labelFontFamily;
 
-        // Add text if radius is large enough and label is not 'none'
-        if (radius > 10 && currentLabel !== 'none') {
-          ctx.fillStyle = currentLabel;
-          const fontSize = Math.min(14, Math.max(7, radius / 3));
-          ctx.font = `${fontSize}px ${currentLabelFontFamily}`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
+        // Add text if radius is large enough and label is not 'none' (always show for leaf nodes)
+        const isActualLeaf = leafNodes.has(node.id);
+        if (
+          isActualLeaf ||
+          (radius > 10 &&
+            currentLabel !== 'none' &&
+            currentLabel !== 'transparent')
+        ) {
+          // For leaf nodes, ensure text is always visible
+          ctx.fillStyle = isActualLeaf ? '#333333' : currentLabel;
 
           const text = String(node.name || node.id);
-          const maxWidth = radius * 1.8;
-          let displayText = text;
 
-          const textWidth = ctx.measureText(displayText).width;
-          if (textWidth > maxWidth && displayText.length > 3) {
-            const ratio = maxWidth / textWidth;
-            const truncateLength = Math.floor(displayText.length * ratio);
-            displayText =
-              displayText.substring(0, Math.max(1, truncateLength - 3)) + '…';
+          // Debug logging for leaf nodes
+          if (isActualLeaf) {
+            console.log(
+              `Leaf node: ${text}, radius: ${radius}, label: ${currentLabel}, angle: ${angle}`,
+            );
           }
 
-          ctx.fillText(displayText, x, y);
+          if (isActualLeaf) {
+            // For leaf nodes: use font size 7 and position text outside circle with rotation
+            const fontSize = 7;
+            ctx.font = `${fontSize}px ${currentLabelFontFamily}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Calculate position outside the circle with proper padding
+            const textPadding = 2; // 1-2px padding as requested
+            const textDistance = radius + textPadding;
+
+            // Determine if text is on left half (angle between 90° and 270°)
+            const normalizedAngle =
+              ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            const isLeftHalf =
+              normalizedAngle > Math.PI / 2 &&
+              normalizedAngle < (3 * Math.PI) / 2;
+
+            // Calculate base position at circle edge + padding
+            const baseX = x + textDistance * Math.cos(angle);
+            const baseY = y + textDistance * Math.sin(angle);
+
+            // Save context for rotation
+            ctx.save();
+
+            if (isLeftHalf) {
+              // For left labels: make readable by rotating 180° additional
+              // and position so text starts from left and ends at circle
+              const textWidth = ctx.measureText(text).width;
+
+              // Move to position where text should end (at circle)
+              ctx.translate(baseX, baseY);
+              // Rotate to make readable (flip the text)
+              ctx.rotate(angle + Math.PI);
+
+              // Set right alignment so text ends at the translated position
+              ctx.textAlign = 'right';
+            } else {
+              // For right half: normal positioning and rotation
+              ctx.translate(baseX, baseY);
+              ctx.rotate(angle);
+              ctx.textAlign = 'left';
+            }
+
+            // Draw text at origin (already translated)
+            ctx.fillText(text, 0, 0);
+
+            // Restore context
+            ctx.restore();
+          } else {
+            // For non-leaf nodes: use existing logic
+            const fontSize = Math.min(14, Math.max(7, radius / 3));
+            ctx.font = `${fontSize}px ${currentLabelFontFamily}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const maxWidth = radius * 1.8;
+            let displayText = text;
+
+            const textWidth = ctx.measureText(displayText).width;
+            if (textWidth > maxWidth && displayText.length > 3) {
+              const ratio = maxWidth / textWidth;
+              const truncateLength = Math.floor(displayText.length * ratio);
+              displayText =
+                displayText.substring(0, Math.max(1, truncateLength - 3)) + '…';
+            }
+
+            ctx.fillText(displayText, x, y);
+          }
         }
       },
     );

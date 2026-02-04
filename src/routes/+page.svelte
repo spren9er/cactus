@@ -173,7 +173,7 @@
         depths: [
           {
             depth: -1,
-            label: 'transparent',
+            label: '#333333',
             fill: '#333333',
             stroke: 'none',
             strokeWidth: 0,
