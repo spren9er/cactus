@@ -1,6 +1,10 @@
 # cactus-tree
 
-A Svelte library for visualizing hierarchical data structures using the <i>CactusTree</i> algorithm with hierarchical edge bundling.
+A Svelte library for visualizing hierarchical data structures using the CactusTree algorithm with hierarchical edge bundling.
+
+<div align="center">
+  <img src="https://github.com/spren9er/cactus-tree/blob/main/docs/images/cactus-tree.png?raw=true" alt="cactus-tree" width="50%" height="50%">
+</div>
 
 ## Overview
 
