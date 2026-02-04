@@ -65,10 +65,10 @@ npm install cactus-tree
 
 ```typescript
 interface Node {
-  id: string; // Unique identifier
-  name: string; // Display name
+  id: string;            // Unique identifier
+  name: string;          // Display name
   parent: string | null; // Parent node ID (null for root)
-  weight?: number; // Optional explicit weight
+  weight?: number;       // Optional explicit weight
 }
 ```
 
@@ -85,11 +85,11 @@ interface Link {
 
 ```typescript
 interface Options {
-  overlap?: number; // Node overlap factor (-inf to 1, default: 0.5)
-  arcSpan?: number; // Arc span in radians (default: 5π/4)
+  overlap?: number;        // Node overlap factor (-inf to 1, default: 0.5)
+  arcSpan?: number;        // Arc span in radians (default: 5π/4)
   sizeGrowthRate?: number; // Size growth rate (default: 0.75)
-  orientation?: number; // Root orientation in radians (default: -π/2)
-  zoom?: number; // Zoom level (default: 1.0)
+  orientation?: number;    // Root orientation in radians (default: -π/2)
+  zoom?: number;           // Zoom level (default: 1.0)
 }
 ```
 
@@ -98,30 +98,30 @@ interface Options {
 ```typescript
 interface Styles {
   // Node appearance
-  fill?: string; // Node fill color (default: '#efefef')
-  fillOpacity?: number; // Node fill opacity (default: 1)
-  stroke?: string; // Node stroke color (default: '#333333')
-  strokeWidth?: number; // Node stroke width (default: 1)
-  strokeOpacity?: number; // Node stroke opacity (default: 1)
+  fill?: string;            // Node fill color (default: '#efefef')
+  fillOpacity?: number;     // Node fill opacity (default: 1)
+  stroke?: string;          // Node stroke color (default: '#333333')
+  strokeWidth?: number;     // Node stroke width (default: 1)
+  strokeOpacity?: number;   // Node stroke opacity (default: 1)
 
   // Labels
-  label?: string; // Label color (default: '#333333')
+  label?: string;           // Label color (default: '#333333')
   labelFontFamily?: string; // Label font (default: 'monospace')
-  labelLimit?: number; // Max leaf labels to show (default: 50)
+  labelLimit?: number;      // Max leaf labels to show (default: 50)
 
   // Connections
-  line?: string; // Tree line color (default: '#333333')
-  lineWidth?: number; // Tree line width (default: 1)
-  edge?: string; // Link color (default: '#ff6b6b')
-  edgeWidth?: number; // Link width (default: 2)
+  line?: string;            // Tree line color (default: '#333333')
+  lineWidth?: number;       // Tree line width (default: 1)
+  edge?: string;            // Link color (default: '#ff6b6b')
+  edgeWidth?: number;       // Link width (default: 2)
 
   // Hover effects
-  highlight?: boolean; // Enable hover effects (default: true)
-  highlightFill?: string; // Hover fill color (default: '#ffcc99')
+  highlight?: boolean;      // Enable hover effects (default: true)
+  highlightFill?: string;   // Hover fill color (default: '#ffcc99')
   highlightStroke?: string; // Hover stroke color (default: '#ff6600')
 
   // Depth-specific styling
-  depths?: DepthStyle[]; // Per-depth style overrides
+  depths?: DepthStyle[];    // Per-depth style overrides
 }
 ```
 
@@ -155,12 +155,12 @@ For custom implementations or non-Svelte environments, you can use the layout al
 import { CactusLayout } from 'cactus-tree';
 
 const layout = new CactusLayout(
-  800, // width
-  600, // height
-  1.0, // zoom
-  0.5, // overlap
-  Math.PI, // arcSpan
-  0.75, // sizeGrowthRate
+  800,       // width
+  600,       // height
+  1.0,       // zoom
+  0.5,       // overlap
+  Math.PI,   // arcSpan
+  0.75,      // sizeGrowthRate
 );
 
 const nodeData = layout.render(nodes, 400, 300, -Math.PI / 2);
@@ -202,13 +202,13 @@ NodeData[] // Array of positioned nodes
 
 ```typescript
 interface NodeData {
-  x: number; // X coordinate
-  y: number; // Y coordinate
-  radius: number; // Node radius
-  node: Node; // Original node reference
+  x: number;       // X coordinate
+  y: number;       // Y coordinate
+  radius: number;  // Node radius
+  node: Node;      // Original node reference
   isLeaf: boolean; // Whether this is a leaf node
-  depth: number; // Depth in hierarchy (0 = root)
-  angle: number; // Angle from parent (radians)
+  depth: number;   // Depth in hierarchy (0 = root)
+  angle: number;   // Angle from parent (radians)
 }
 ```
 
@@ -314,9 +314,9 @@ Leaf node labels have special behavior:
   height={800}
   {nodes}
   options={{
-    overlap: -0.5, // Gaps between nodes
-    arcSpan: Math.PI, // Half circle layout
-    orientation: Math.PI, // Downward growth
+    overlap: -0.5,        // Gaps between nodes
+    arcSpan: Math.PI,     // Half circle layout
+    orientation: Math.PI, // Leftward growth
     zoom: 1.5,
   }}
 />
