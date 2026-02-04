@@ -114,6 +114,7 @@ interface Styles {
   lineWidth?: number;       // Tree line width (default: 1)
   edge?: string;            // Link color (default: '#ff6b6b')
   edgeWidth?: number;       // Link width (default: 1)
+  edgeOpacity?: number;     // Link opacity (default: 0.1, full opacity when hovering leaf nodes with links)
 
   // Hover effects
   highlight?: boolean;      // Enable hover effects (default: true)
@@ -139,8 +140,6 @@ interface DepthStyle {
   labelFontFamily?: string;
   line?: string;
   lineWidth?: number;
-  edge?: string;
-  edgeWidth?: number;
   highlight?: boolean;
   highlightFill?: string;
   highlightStroke?: string;
@@ -301,6 +300,7 @@ Leaf node labels have special behavior:
   ]}
   styles={{
     edge: '#3498db',
+    edgeOpacity: 0.3,
     edgeWidth: 2,
   }}
 />

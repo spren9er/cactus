@@ -3,7 +3,7 @@
 
   import { CactusLayout } from '$lib/cactusLayout.js';
 
-  /** @type {{ width: number, height: number, nodes: Array<{id: string, name: string, parent: string|null, weight?: number}>, links?: Array<{source: string, target: string}>, options?: {overlap?: number, arcSpan?: number, sizeGrowthRate?: number, orientation?: number, zoom?: number}, styles?: {fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, edge?: string, edgeWidth?: number, highlightFill?: string, highlightStroke?: string, highlight?: boolean, labelLimit?: number, depths?: Array<{depth: number, fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, edge?: string, edgeWidth?: number, highlightFill?: string, highlightStroke?: string, highlight?: boolean}>}, pannable?: boolean, zoomable?: boolean }} */
+  /** @type {{ width: number, height: number, nodes: Array<{id: string, name: string, parent: string|null, weight?: number}>, links?: Array<{source: string, target: string}>, options?: {overlap?: number, arcSpan?: number, sizeGrowthRate?: number, orientation?: number, zoom?: number}, styles?: {fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, edge?: string, edgeWidth?: number, edgeOpacity?: number, highlightFill?: string, highlightStroke?: string, highlight?: boolean, labelLimit?: number, depths?: Array<{depth: number, fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, highlightFill?: string, highlightStroke?: string, highlight?: boolean}>}, pannable?: boolean, zoomable?: boolean }} */
   let {
     width,
     height,
@@ -36,6 +36,7 @@
     line: '#333333',
     edge: '#ff6b6b',
     edgeWidth: 1,
+    edgeOpacity: 0.1,
     highlightFill: '#ffcc99',
     highlightStroke: '#ff6600',
     highlight: true,
@@ -514,10 +515,25 @@
         const currentEdgeColor = mergedStyle.edge;
         const currentEdgeWidth = mergedStyle.edgeWidth;
 
+        // Use full opacity only when hovering over leaf nodes with links
+        let isFilteringLinks = false;
+        if (hoveredNodeId !== null) {
+          const hoveredNode = nodeIdToRenderedNodeMap.get(hoveredNodeId);
+          const isLeafNode =
+            hoveredNode && !parentToChildrenNodeMap.has(hoveredNodeId);
+          isFilteringLinks = isLeafNode;
+        }
+        const currentEdgeOpacity = isFilteringLinks
+          ? 1.0
+          : mergedStyle.edgeOpacity;
+
         if (currentEdgeWidth > 0 && currentEdgeColor !== 'none' && ctx) {
           // Set style only if different from current
           if (ctx.strokeStyle !== currentEdgeColor) {
             ctx.strokeStyle = currentEdgeColor;
+          }
+          if (ctx.globalAlpha !== currentEdgeOpacity) {
+            ctx.globalAlpha = currentEdgeOpacity;
           }
           if (ctx.lineWidth !== currentEdgeWidth) {
             ctx.lineWidth = currentEdgeWidth;
@@ -558,6 +574,11 @@
             }
           }
           ctx.stroke();
+
+          // Reset alpha only if changed
+          if (ctx.globalAlpha !== 1.0) {
+            ctx.globalAlpha = 1.0;
+          }
         }
       });
     }

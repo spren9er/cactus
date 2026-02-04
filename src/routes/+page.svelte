@@ -166,6 +166,7 @@
         labelFontFamily: 'monospace',
         labelLimit: 50,
         edge: '#e2575a',
+        edgeOpacity: 0.1,
         highlightStroke: '#e2575a',
         highlightFill: '#ffbbb7',
         fill: '#dedede',
