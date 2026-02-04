@@ -1,10 +1,10 @@
-# Cactus
+# cactus-tree
 
-A Svelte library for visualizing hierarchical data structures using the CactusTree algorithm with hierarchical edge bundling.
+A Svelte library for visualizing hierarchical data structures using the <i>CactusTree</i> algorithm with hierarchical edge bundling.
 
 ## Overview
 
-The JavaScript library **cactus** is based on the research paper ["CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling"](https://ieeexplore.ieee.org/document/8031596) by Tommy Dang and Angus Forbes. This implementation provides both a ready-to-use Svelte component and a standalone layout algorithm for creating interactive tree visualizations.
+The library **cactus-tree** is based on the research paper ["CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling"](https://ieeexplore.ieee.org/document/8031596) by Tommy Dang and Angus Forbes. This implementation provides both a ready-to-use Svelte component and a standalone layout algorithm for creating interactive tree visualizations.
 
 ## Features
 
@@ -17,14 +17,14 @@ The JavaScript library **cactus** is based on the research paper ["CactusTree: A
 ## Installation
 
 ```bash
-npm install cactus
+npm install cactus-tree
 ```
 
 ## Quick Start
 
 ```svelte
 <script>
-  import { Cactus } from 'cactus';
+  import { Cactus } from 'cactus-tree';
 
   const nodes = [
     { id: 'root', name: 'Root', parent: null },
@@ -155,7 +155,7 @@ interface DepthStyle {
 For custom implementations or non-Svelte environments, you can use the layout algorithm directly:
 
 ```javascript
-import { CactusLayout } from 'cactus';
+import { CactusLayout } from 'cactus-tree';
 
 const layout = new CactusLayout(
   800,     // width
@@ -221,7 +221,7 @@ interface NodeData {
 
 ```svelte
 <script>
-  import { Cactus } from 'cactus';
+  import { Cactus } from 'cactus-tree';
   
   const styles = {
     fill: '#f0f8ff',

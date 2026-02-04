@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import Cactus from '$lib/components/Cactus.svelte';
+
+  import CactusTree from '$lib/components/CactusTree.svelte';
 
   /** @type {Array<{id: string, name: string, parent: string|null}>} */
   let nodes = [];
@@ -40,12 +41,12 @@
 </svelte:head>
 
 <main class="container">
-  <h1>cactus</h1>
+  <h1>cactus-tree</h1>
 
   <p>
     <i>CactusTree</i> is an advanced visualization technique designed to
     represent complex hierarchical structures and their interconnections in
-    deeply nested trees. The Svelte library <b>cactus</b> is based on the
+    deeply nested trees. The Svelte library <b>cactus-tree</b> is based on the
     research paper
     <a href="https://ieeexplore.ieee.org/document/8031596">
       CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling
@@ -56,17 +57,18 @@
   </p>
 
   <p>
-    This implementation includes several customizable parameters to control the
-    visual appearance and behavior of the tree layout. The demo dataset
-    represents the software architecture and dependency structure of the Flare
-    ActionScript visualization library, originally featured in this
+    This implementation of <i>CactusTree</i> includes several customizable
+    parameters to control the visual appearance and behavior of the tree layout.
+    The dataset of below example represents the software architecture and
+    dependency structure of the <i>Flare ActionScript</i> visualization library,
+    originally featured in this
     <a href="https://observablehq.com/@d3/hierarchical-edge-bundling"
       >Observable notebook</a
     >.
   </p>
 
   <p>
-    The Svelte library <b>cactus</b> can be found on
+    The Svelte library <b>cactus-tree</b> can be found on
     <a href="https://github.com/spren9er/cactus">GitHub</a>.
   </p>
 
@@ -149,7 +151,7 @@
     style:width={`${width}px`}
     style:height={`${height}px`}
   >
-    <Cactus
+    <CactusTree
       {width}
       {height}
       {nodes}
@@ -244,6 +246,7 @@
   }
 
   .control-grid {
+    font-size: 11px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 25px;
@@ -280,6 +283,7 @@
   }
 
   .edge-bundling-control label {
+    font-size: 11px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -292,18 +296,19 @@
   }
 
   .footer {
+    background-color: #f9f9f9;
     text-align: center;
     position: fixed;
-    bottom: 16px;
-    width: 200px;
-    margin-left: -100px;
-    left: 50%;
+    bottom: 0px;
+    padding: 12px;
+    width: 100%;
+    margin-left: -38px;
   }
 
   .footer a {
     color: #333333;
     text-decoration: none;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .footer a:hover {
