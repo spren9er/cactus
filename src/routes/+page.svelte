@@ -58,7 +58,7 @@
   <p>
     This implementation of <i>CactusTree</i> includes several customizable
     parameters to control the visual appearance and behavior of the tree layout.
-    The dataset of below example represents the software architecture and
+    The dataset of example below represents the software architecture and
     dependency structure of the <i>Flare ActionScript</i> visualization library,
     originally featured in this
     <a href="https://observablehq.com/@d3/hierarchical-edge-bundling"
@@ -163,8 +163,10 @@
         zoom: config.zoom,
       }}
       styles={{
+        label: '#333333',
         labelFontFamily: 'monospace',
         labelLimit: 50,
+        line: '#aaaaaa',
         edge: '#e2575a',
         edgeOpacity: 0.1,
         highlightStroke: '#e2575a',
@@ -185,7 +187,7 @@
           {
             depth: 0,
             fill: '#333333',
-            stroke: 'white',
+            stroke: '#333333',
             label: '#efefef',
             highlightFill: '#333333',
           },
