@@ -1,0 +1,1172 @@
+[
+  {
+    "id": "node_0",
+    "name": "NGF Pathway",
+    "parent": null
+  },
+  {
+    "id": "node_1",
+    "name": "PI3K/AKT activation",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_2",
+    "name": "PI3K produces PIP3 and other phosphatidyl inositides",
+    "parent": "node_1"
+  },
+  {
+    "id": "node_3",
+    "name": "PIP3 binds to RhoA and activates it",
+    "parent": "node_1"
+  },
+  {
+    "id": "node_4",
+    "name": "Active TRKA binds IRS1/2",
+    "parent": "node_1"
+  },
+  {
+    "id": "node_5",
+    "name": "TRKA phosphorylates IRS",
+    "parent": "node_1"
+  },
+  {
+    "id": "node_6",
+    "name": "Active IRS recruits PI3K to the plasma membrane and activates it",
+    "parent": "node_1"
+  },
+  {
+    "id": "node_7",
+    "name": "PIP3 activates AKT signaling",
+    "parent": "node_1"
+  },
+  {
+    "id": "node_8",
+    "name": "AKT translocates to the nucleus",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_9",
+    "name": "PI3K phosphorylates PIP2 to PIP3",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_10",
+    "name": "PTEN mRNA translation negatively regulated by microRNAs",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_11",
+    "name": "PIP3 recruits AKT to the membrane",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_12",
+    "name": "PDPK1 phosphorylates AKT at T308",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_13",
+    "name": "TORC2 (mTOR) phosphorylates AKT at S473",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_14",
+    "name": "MIR26A microRNAs bind PTEN mRNA",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_15",
+    "name": "PIP3 recruits PDPK1 to the membrane",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_16",
+    "name": "PDPK1 binds PIP2",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_17",
+    "name": "AKT binds PDPK1",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_18",
+    "name": "AKT phosphorylates targets in the cytosol",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_19",
+    "name": "AKT phosphorylates BAD",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_20",
+    "name": "AKT phosphorylates caspase-9",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_21",
+    "name": "AKT phosphorylates GSK3",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_22",
+    "name": "AKT phosphorylates IKKalpha",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_23",
+    "name": "AKT phosphorylates MDM2",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_24",
+    "name": "AKT phosphorylates TSC2 inhibiting it",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_25",
+    "name": "AKT phosphorylates p21Cip1 and p27Kip1",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_26",
+    "name": "AKT phosphorylates AKT1S1 (PRAS40)",
+    "parent": "node_18"
+  },
+  {
+    "id": "node_27",
+    "name": "AKT phosphorylates targets in the nucleus",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_28",
+    "name": "AKT can phosphorylate NR4A1 (NUR77)",
+    "parent": "node_27"
+  },
+  {
+    "id": "node_29",
+    "name": "AKT can phosphorylate RSK",
+    "parent": "node_27"
+  },
+  {
+    "id": "node_30",
+    "name": "AKT can phosphorylate forkhead box transcription factors",
+    "parent": "node_27"
+  },
+  {
+    "id": "node_31",
+    "name": "AKT phosphorylates CREB1",
+    "parent": "node_27"
+  },
+  {
+    "id": "node_32",
+    "name": "Negative regulation of the PI3K/AKT network",
+    "parent": "node_7"
+  },
+  {
+    "id": "node_33",
+    "name": "PTEN dephosphorylates PIP3",
+    "parent": "node_32"
+  },
+  {
+    "id": "node_34",
+    "name": "PHLPP dephosphorylates S473 in AKT",
+    "parent": "node_32"
+  },
+  {
+    "id": "node_35",
+    "name": "THEM4 (CTMP) and/or TRIB3 inhibit AKT phosphorylation",
+    "parent": "node_32"
+  },
+  {
+    "id": "node_36",
+    "name": "Signalling to ERK5",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_37",
+    "name": "ERK5 is activated",
+    "parent": "node_36"
+  },
+  {
+    "id": "node_38",
+    "name": "ERK5 translocates to the nucleus",
+    "parent": "node_36"
+  },
+  {
+    "id": "node_39",
+    "name": "Retrograde neurotrophin signalling",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_40",
+    "name": "Formation of clathrin-coated vesicle",
+    "parent": "node_39"
+  },
+  {
+    "id": "node_41",
+    "name": "Endocytosis (internalization) of clathrin-coated vesicle",
+    "parent": "node_39"
+  },
+  {
+    "id": "node_42",
+    "name": "Axonal transport of NGF:Trk complexes",
+    "parent": "node_39"
+  },
+  {
+    "id": "node_43",
+    "name": "Nuclear Events (kinase and transcription factor activation)",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_44",
+    "name": "CREB phosphorylation",
+    "parent": "node_43"
+  },
+  {
+    "id": "node_45",
+    "name": "RSK1/2/3 phosphorylates CREB at Serine 133",
+    "parent": "node_44"
+  },
+  {
+    "id": "node_46",
+    "name": "MSK1 activates ATF1",
+    "parent": "node_44"
+  },
+  {
+    "id": "node_47",
+    "name": "MAPKAPK2 phosphorylates CREB at Serine 133",
+    "parent": "node_44"
+  },
+  {
+    "id": "node_48",
+    "name": "MSK1 activates CREB",
+    "parent": "node_44"
+  },
+  {
+    "id": "node_49",
+    "name": "ERK/MAPK targets",
+    "parent": "node_43"
+  },
+  {
+    "id": "node_50",
+    "name": "ERK1/2 phosphorylates MSK1",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_51",
+    "name": "p38MAPK phosphorylates MSK1",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_52",
+    "name": "ERK1/2/5 activate RSK1/2/3",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_53",
+    "name": "ERK1/2 activates ELK1",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_54",
+    "name": "ERKs are inactivated by protein phosphatase 2A",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_55",
+    "name": "ERK5 activates the transcription factor MEF2",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_56",
+    "name": "ERKs are inactivated",
+    "parent": "node_49"
+  },
+  {
+    "id": "node_57",
+    "name": "ERKs are inactivated by protein phosphatase 2A",
+    "parent": "node_56"
+  },
+  {
+    "id": "node_58",
+    "name": "ERKs are inactivated by dual-specific phosphatases (DUSPs)",
+    "parent": "node_56"
+  },
+  {
+    "id": "node_59",
+    "name": "Activation of TRKA receptors",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_60",
+    "name": "NGF-independant TRKA activation",
+    "parent": "node_59"
+  },
+  {
+    "id": "node_61",
+    "name": "TRKA activation by PACAP type 1 receptor",
+    "parent": "node_60"
+  },
+  {
+    "id": "node_62",
+    "name": "TRKA activation by adenosine A2a receptor",
+    "parent": "node_60"
+  },
+  {
+    "id": "node_63",
+    "name": "TRKA activation by NGF",
+    "parent": "node_59"
+  },
+  {
+    "id": "node_64",
+    "name": "TrkA receptor autophosphorylates",
+    "parent": "node_63"
+  },
+  {
+    "id": "node_65",
+    "name": "The bound receptor dimerizes",
+    "parent": "node_63"
+  },
+  {
+    "id": "node_66",
+    "name": "beta-NGF dimer binds to TrkA receptor",
+    "parent": "node_63"
+  },
+  {
+    "id": "node_67",
+    "name": "Activated TrkA receptor internalizes to endosomes",
+    "parent": "node_63"
+  },
+  {
+    "id": "node_68",
+    "name": "Signalling to STAT3",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_69",
+    "name": "STAT3 activation",
+    "parent": "node_68"
+  },
+  {
+    "id": "node_70",
+    "name": "PLC-gamma1 signalling",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_71",
+    "name": "Binding of PLCG1 to active TrkA receptor",
+    "parent": "node_70"
+  },
+  {
+    "id": "node_72",
+    "name": "Active PLCG1 dissociates from TrkA receptor",
+    "parent": "node_70"
+  },
+  {
+    "id": "node_73",
+    "name": "DAG and IP3 signaling",
+    "parent": "node_70"
+  },
+  {
+    "id": "node_74",
+    "name": "IP3R tetramer:4xI(145)P3 transports Ca2+ from ER lumen to cytosol",
+    "parent": "node_73"
+  },
+  {
+    "id": "node_75",
+    "name": "Active PLCG1 hydrolyses PIP2",
+    "parent": "node_73"
+  },
+  {
+    "id": "node_76",
+    "name": "DAG stimulates protein kinase C-delta",
+    "parent": "node_73"
+  },
+  {
+    "id": "node_77",
+    "name": "IP3 binds to the IP3 receptor opening the endoplasmic reticulum Ca2+ channel",
+    "parent": "node_73"
+  },
+  {
+    "id": "node_78",
+    "name": "CaM pathway",
+    "parent": "node_73"
+  },
+  {
+    "id": "node_79",
+    "name": "Calcium binds calmodulin",
+    "parent": "node_78"
+  },
+  {
+    "id": "node_80",
+    "name": "Calmodulin induced events",
+    "parent": "node_78"
+  },
+  {
+    "id": "node_81",
+    "name": "PKC phosphorylates GRK2",
+    "parent": "node_80"
+  },
+  {
+    "id": "node_82",
+    "name": "Inhibition of GRK2 by calmodulin",
+    "parent": "node_80"
+  },
+  {
+    "id": "node_83",
+    "name": "Cam-PDE 1 activation",
+    "parent": "node_80"
+  },
+  {
+    "id": "node_84",
+    "name": "cAMP hydrolysis by Cam-PDE 1",
+    "parent": "node_83"
+  },
+  {
+    "id": "node_85",
+    "name": "Calmodulin activates Cam-PDE 1",
+    "parent": "node_83"
+  },
+  {
+    "id": "node_86",
+    "name": "CaMK IV-mediated phosphorylation of CREB",
+    "parent": "node_80"
+  },
+  {
+    "id": "node_87",
+    "name": "CaMK IV autophosphorylation",
+    "parent": "node_86"
+  },
+  {
+    "id": "node_88",
+    "name": "CaMK IV phosphorylates CREB",
+    "parent": "node_86"
+  },
+  {
+    "id": "node_89",
+    "name": "Calmodulin binds CaMK IV",
+    "parent": "node_86"
+  },
+  {
+    "id": "node_90",
+    "name": "CamKIV enters the nucleus",
+    "parent": "node_86"
+  },
+  {
+    "id": "node_91",
+    "name": "Dimerisation of CREB",
+    "parent": "node_86"
+  },
+  {
+    "id": "node_92",
+    "name": "PKA-mediated phosphorylation of CREB",
+    "parent": "node_80"
+  },
+  {
+    "id": "node_93",
+    "name": "PKA catalytic subunit translocates to the nucleus",
+    "parent": "node_92"
+  },
+  {
+    "id": "node_94",
+    "name": "PKA phosphorylates CREB",
+    "parent": "node_92"
+  },
+  {
+    "id": "node_95",
+    "name": "Dimerisation of CREB",
+    "parent": "node_92"
+  },
+  {
+    "id": "node_96",
+    "name": "PKA activation",
+    "parent": "node_92"
+  },
+  {
+    "id": "node_97",
+    "name": "cAMP induces dissociation of inactive PKA tetramers",
+    "parent": "node_96"
+  },
+  {
+    "id": "node_98",
+    "name": "Adenylate cyclase produces cAMP",
+    "parent": "node_96"
+  },
+  {
+    "id": "node_99",
+    "name": "Signalling to ERKs",
+    "parent": "node_0"
+  },
+  {
+    "id": "node_100",
+    "name": "Signalling to p38 via RIT and RIN",
+    "parent": "node_99"
+  },
+  {
+    "id": "node_101",
+    "name": "RIT/RIN are activated",
+    "parent": "node_100"
+  },
+  {
+    "id": "node_102",
+    "name": "RIT/RIN-GTP binds B-RAF",
+    "parent": "node_100"
+  },
+  {
+    "id": "node_103",
+    "name": "TRKA recruits RIT and RIN",
+    "parent": "node_100"
+  },
+  {
+    "id": "node_104",
+    "name": "RAF/MAP kinase cascade",
+    "parent": "node_100"
+  },
+  {
+    "id": "node_105",
+    "name": "MEK activation",
+    "parent": "node_104"
+  },
+  {
+    "id": "node_106",
+    "name": "Activated RAF1 complex binds MEK",
+    "parent": "node_105"
+  },
+  {
+    "id": "node_107",
+    "name": "RAF phosphorylates MEK",
+    "parent": "node_105"
+  },
+  {
+    "id": "node_108",
+    "name": "RAF1 phosphorylates MEK2",
+    "parent": "node_107"
+  },
+  {
+    "id": "node_109",
+    "name": "RAF1 phosphorylates MEK1",
+    "parent": "node_107"
+  },
+  {
+    "id": "node_110",
+    "name": "RAF activation",
+    "parent": "node_104"
+  },
+  {
+    "id": "node_111",
+    "name": "p-RAF binds 14-3-3 beta/alpha",
+    "parent": "node_110"
+  },
+  {
+    "id": "node_112",
+    "name": "Transient dissociation of 14-3-3 upon Ras binding",
+    "parent": "node_110"
+  },
+  {
+    "id": "node_113",
+    "name": "Stabilisation of RAS:RAF by 14-3-3",
+    "parent": "node_110"
+  },
+  {
+    "id": "node_114",
+    "name": "Stabilisation of RAF by further phosphorylation",
+    "parent": "node_110"
+  },
+  {
+    "id": "node_115",
+    "name": "Phosphorylated human RAF1 binds to RAS:GTP complex",
+    "parent": "node_110"
+  },
+  {
+    "id": "node_116",
+    "name": "ERK activation",
+    "parent": "node_104"
+  },
+  {
+    "id": "node_117",
+    "name": "ERK1 activation",
+    "parent": "node_116"
+  },
+  {
+    "id": "node_118",
+    "name": "MEK1 binds ERK-1",
+    "parent": "node_117"
+  },
+  {
+    "id": "node_119",
+    "name": "Inactivation of MEK1 by p34cdc2",
+    "parent": "node_117"
+  },
+  {
+    "id": "node_120",
+    "name": "Dimerisation of phospho-ERK-1",
+    "parent": "node_117"
+  },
+  {
+    "id": "node_121",
+    "name": "Nuclear translocation of phospho-ERK-1 dimer",
+    "parent": "node_117"
+  },
+  {
+    "id": "node_122",
+    "name": "MEK1 phosphorylates ERK-1",
+    "parent": "node_117"
+  },
+  {
+    "id": "node_123",
+    "name": "Dissociation of phospho-ERK-1:MEK1",
+    "parent": "node_117"
+  },
+  {
+    "id": "node_124",
+    "name": "ERK2 activation",
+    "parent": "node_116"
+  },
+  {
+    "id": "node_125",
+    "name": "Nuclear translocation of phospho-ERK-2 dimer",
+    "parent": "node_124"
+  },
+  {
+    "id": "node_126",
+    "name": "Dissociation of phospho-ERK-2:MEK2",
+    "parent": "node_124"
+  },
+  {
+    "id": "node_127",
+    "name": "Dimerisation of phospho-ERK-2",
+    "parent": "node_124"
+  },
+  {
+    "id": "node_128",
+    "name": "MEK2 binds ERK-2",
+    "parent": "node_124"
+  },
+  {
+    "id": "node_129",
+    "name": "MEK2 phosphorylates ERK-2",
+    "parent": "node_124"
+  },
+  {
+    "id": "node_130",
+    "name": "Prolonged ERK activation events",
+    "parent": "node_99"
+  },
+  {
+    "id": "node_131",
+    "name": "Frs2-mediated activation",
+    "parent": "node_130"
+  },
+  {
+    "id": "node_132",
+    "name": "(Frs2)Rap1-GTP binds to and activates B-Raf",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_133",
+    "name": "FRS2 binds to active TrkA receptor",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_134",
+    "name": "Phospho-Frs2:CrkL engages C3G",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_135",
+    "name": "(Frs2)C3G stimulates nucleotide exchange on Rap1",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_136",
+    "name": "FRS2 is phosphorylated by active TrkA receptor",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_137",
+    "name": "p-FRS2 binds CRKL",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_138",
+    "name": "RAF/MAP kinase cascade",
+    "parent": "node_131"
+  },
+  {
+    "id": "node_139",
+    "name": "MEK activation",
+    "parent": "node_138"
+  },
+  {
+    "id": "node_140",
+    "name": "Activated RAF1 complex binds MEK",
+    "parent": "node_139"
+  },
+  {
+    "id": "node_141",
+    "name": "RAF phosphorylates MEK",
+    "parent": "node_139"
+  },
+  {
+    "id": "node_142",
+    "name": "RAF1 phosphorylates MEK2",
+    "parent": "node_141"
+  },
+  {
+    "id": "node_143",
+    "name": "RAF1 phosphorylates MEK1",
+    "parent": "node_141"
+  },
+  {
+    "id": "node_144",
+    "name": "RAF activation",
+    "parent": "node_138"
+  },
+  {
+    "id": "node_145",
+    "name": "p-RAF binds 14-3-3 beta/alpha",
+    "parent": "node_144"
+  },
+  {
+    "id": "node_146",
+    "name": "Transient dissociation of 14-3-3 upon Ras binding",
+    "parent": "node_144"
+  },
+  {
+    "id": "node_147",
+    "name": "Stabilisation of RAS:RAF by 14-3-3",
+    "parent": "node_144"
+  },
+  {
+    "id": "node_148",
+    "name": "Stabilisation of RAF by further phosphorylation",
+    "parent": "node_144"
+  },
+  {
+    "id": "node_149",
+    "name": "Phosphorylated human RAF1 binds to RAS:GTP complex",
+    "parent": "node_144"
+  },
+  {
+    "id": "node_150",
+    "name": "ERK activation",
+    "parent": "node_138"
+  },
+  {
+    "id": "node_151",
+    "name": "ERK1 activation",
+    "parent": "node_150"
+  },
+  {
+    "id": "node_152",
+    "name": "MEK1 binds ERK-1",
+    "parent": "node_151"
+  },
+  {
+    "id": "node_153",
+    "name": "Inactivation of MEK1 by p34cdc2",
+    "parent": "node_151"
+  },
+  {
+    "id": "node_154",
+    "name": "Dimerisation of phospho-ERK-1",
+    "parent": "node_151"
+  },
+  {
+    "id": "node_155",
+    "name": "Nuclear translocation of phospho-ERK-1 dimer",
+    "parent": "node_151"
+  },
+  {
+    "id": "node_156",
+    "name": "MEK1 phosphorylates ERK-1",
+    "parent": "node_151"
+  },
+  {
+    "id": "node_157",
+    "name": "Dissociation of phospho-ERK-1:MEK1",
+    "parent": "node_151"
+  },
+  {
+    "id": "node_158",
+    "name": "ERK2 activation",
+    "parent": "node_150"
+  },
+  {
+    "id": "node_159",
+    "name": "Nuclear translocation of phospho-ERK-2 dimer",
+    "parent": "node_158"
+  },
+  {
+    "id": "node_160",
+    "name": "Dissociation of phospho-ERK-2:MEK2",
+    "parent": "node_158"
+  },
+  {
+    "id": "node_161",
+    "name": "Dimerisation of phospho-ERK-2",
+    "parent": "node_158"
+  },
+  {
+    "id": "node_162",
+    "name": "MEK2 binds ERK-2",
+    "parent": "node_158"
+  },
+  {
+    "id": "node_163",
+    "name": "MEK2 phosphorylates ERK-2",
+    "parent": "node_158"
+  },
+  {
+    "id": "node_164",
+    "name": "ARMS-mediated activation",
+    "parent": "node_130"
+  },
+  {
+    "id": "node_165",
+    "name": "Crk's SH3 domain engages C3G",
+    "parent": "node_164"
+  },
+  {
+    "id": "node_166",
+    "name": "ARMS is phosphorylated by active TrkA receptor",
+    "parent": "node_164"
+  },
+  {
+    "id": "node_167",
+    "name": "ARMS:Crk complex binds to active TrkA receptor",
+    "parent": "node_164"
+  },
+  {
+    "id": "node_168",
+    "name": "(ARMS)Rap1-GTP binds and activates B-Raf",
+    "parent": "node_164"
+  },
+  {
+    "id": "node_169",
+    "name": "C3G stimulates nucleotide exchange on Rap1",
+    "parent": "node_164"
+  },
+  {
+    "id": "node_170",
+    "name": "RAF/MAP kinase cascade",
+    "parent": "node_164"
+  },
+  {
+    "id": "node_171",
+    "name": "MEK activation",
+    "parent": "node_170"
+  },
+  {
+    "id": "node_172",
+    "name": "Activated RAF1 complex binds MEK",
+    "parent": "node_171"
+  },
+  {
+    "id": "node_173",
+    "name": "RAF phosphorylates MEK",
+    "parent": "node_171"
+  },
+  {
+    "id": "node_174",
+    "name": "RAF1 phosphorylates MEK2",
+    "parent": "node_173"
+  },
+  {
+    "id": "node_175",
+    "name": "RAF1 phosphorylates MEK1",
+    "parent": "node_173"
+  },
+  {
+    "id": "node_176",
+    "name": "RAF activation",
+    "parent": "node_170"
+  },
+  {
+    "id": "node_177",
+    "name": "p-RAF binds 14-3-3 beta/alpha",
+    "parent": "node_176"
+  },
+  {
+    "id": "node_178",
+    "name": "Transient dissociation of 14-3-3 upon Ras binding",
+    "parent": "node_176"
+  },
+  {
+    "id": "node_179",
+    "name": "Stabilisation of RAS:RAF by 14-3-3",
+    "parent": "node_176"
+  },
+  {
+    "id": "node_180",
+    "name": "Stabilisation of RAF by further phosphorylation",
+    "parent": "node_176"
+  },
+  {
+    "id": "node_181",
+    "name": "Phosphorylated human RAF1 binds to RAS:GTP complex",
+    "parent": "node_176"
+  },
+  {
+    "id": "node_182",
+    "name": "ERK activation",
+    "parent": "node_170"
+  },
+  {
+    "id": "node_183",
+    "name": "ERK1 activation",
+    "parent": "node_182"
+  },
+  {
+    "id": "node_184",
+    "name": "MEK1 binds ERK-1",
+    "parent": "node_183"
+  },
+  {
+    "id": "node_185",
+    "name": "Inactivation of MEK1 by p34cdc2",
+    "parent": "node_183"
+  },
+  {
+    "id": "node_186",
+    "name": "Dimerisation of phospho-ERK-1",
+    "parent": "node_183"
+  },
+  {
+    "id": "node_187",
+    "name": "Nuclear translocation of phospho-ERK-1 dimer",
+    "parent": "node_183"
+  },
+  {
+    "id": "node_188",
+    "name": "MEK1 phosphorylates ERK-1",
+    "parent": "node_183"
+  },
+  {
+    "id": "node_189",
+    "name": "Dissociation of phospho-ERK-1:MEK1",
+    "parent": "node_183"
+  },
+  {
+    "id": "node_190",
+    "name": "ERK2 activation",
+    "parent": "node_182"
+  },
+  {
+    "id": "node_191",
+    "name": "Nuclear translocation of phospho-ERK-2 dimer",
+    "parent": "node_190"
+  },
+  {
+    "id": "node_192",
+    "name": "Dissociation of phospho-ERK-2:MEK2",
+    "parent": "node_190"
+  },
+  {
+    "id": "node_193",
+    "name": "Dimerisation of phospho-ERK-2",
+    "parent": "node_190"
+  },
+  {
+    "id": "node_194",
+    "name": "MEK2 binds ERK-2",
+    "parent": "node_190"
+  },
+  {
+    "id": "node_195",
+    "name": "MEK2 phosphorylates ERK-2",
+    "parent": "node_190"
+  },
+  {
+    "id": "node_196",
+    "name": "Signalling to RAS",
+    "parent": "node_99"
+  },
+  {
+    "id": "node_197",
+    "name": "SHC binds to the activated TrkA receptor",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_198",
+    "name": "GRB2:SOS binds to SHC-P",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_199",
+    "name": "SOS mediated nucleotide exchange of RAS (SHC)",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_200",
+    "name": "Phospho-Shc dissociates from the TrkA receptor",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_201",
+    "name": "SHC complexed with TrkA is tyrosine-phosphorylated",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_202",
+    "name": "p38MAPK events",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_203",
+    "name": "Guanine nucleotide exchange on RAL",
+    "parent": "node_202"
+  },
+  {
+    "id": "node_204",
+    "name": "Ral-GDS binds to Ras-GTP",
+    "parent": "node_202"
+  },
+  {
+    "id": "node_205",
+    "name": "Activation of SRC by RAL-GTP",
+    "parent": "node_202"
+  },
+  {
+    "id": "node_206",
+    "name": "Binding and activation of MAP Kinase",
+    "parent": "node_202"
+  },
+  {
+    "id": "node_207",
+    "name": "MAP kinase activates MAPKAPK2 MAPKAPK3 and MSK1",
+    "parent": "node_202"
+  },
+  {
+    "id": "node_208",
+    "name": "RAF/MAP kinase cascade",
+    "parent": "node_196"
+  },
+  {
+    "id": "node_209",
+    "name": "MEK activation",
+    "parent": "node_208"
+  },
+  {
+    "id": "node_210",
+    "name": "Activated RAF1 complex binds MEK",
+    "parent": "node_209"
+  },
+  {
+    "id": "node_211",
+    "name": "RAF phosphorylates MEK",
+    "parent": "node_209"
+  },
+  {
+    "id": "node_212",
+    "name": "RAF1 phosphorylates MEK2",
+    "parent": "node_211"
+  },
+  {
+    "id": "node_213",
+    "name": "RAF1 phosphorylates MEK1",
+    "parent": "node_211"
+  },
+  {
+    "id": "node_214",
+    "name": "RAF activation",
+    "parent": "node_208"
+  },
+  {
+    "id": "node_215",
+    "name": "p-RAF binds 14-3-3 beta/alpha",
+    "parent": "node_214"
+  },
+  {
+    "id": "node_216",
+    "name": "Transient dissociation of 14-3-3 upon Ras binding",
+    "parent": "node_214"
+  },
+  {
+    "id": "node_217",
+    "name": "Stabilisation of RAS:RAF by 14-3-3",
+    "parent": "node_214"
+  },
+  {
+    "id": "node_218",
+    "name": "Stabilisation of RAF by further phosphorylation",
+    "parent": "node_214"
+  },
+  {
+    "id": "node_219",
+    "name": "Phosphorylated human RAF1 binds to RAS:GTP complex",
+    "parent": "node_214"
+  },
+  {
+    "id": "node_220",
+    "name": "ERK activation",
+    "parent": "node_208"
+  },
+  {
+    "id": "node_221",
+    "name": "ERK1 activation",
+    "parent": "node_220"
+  },
+  {
+    "id": "node_222",
+    "name": "MEK1 binds ERK-1",
+    "parent": "node_221"
+  },
+  {
+    "id": "node_223",
+    "name": "Inactivation of MEK1 by p34cdc2",
+    "parent": "node_221"
+  },
+  {
+    "id": "node_224",
+    "name": "Dimerisation of phospho-ERK-1",
+    "parent": "node_221"
+  },
+  {
+    "id": "node_225",
+    "name": "Nuclear translocation of phospho-ERK-1 dimer",
+    "parent": "node_221"
+  },
+  {
+    "id": "node_226",
+    "name": "MEK1 phosphorylates ERK-1",
+    "parent": "node_221"
+  },
+  {
+    "id": "node_227",
+    "name": "Dissociation of phospho-ERK-1:MEK1",
+    "parent": "node_221"
+  },
+  {
+    "id": "node_228",
+    "name": "ERK2 activation",
+    "parent": "node_220"
+  },
+  {
+    "id": "node_229",
+    "name": "Nuclear translocation of phospho-ERK-2 dimer",
+    "parent": "node_228"
+  },
+  {
+    "id": "node_230",
+    "name": "Dissociation of phospho-ERK-2:MEK2",
+    "parent": "node_228"
+  },
+  {
+    "id": "node_231",
+    "name": "Dimerisation of phospho-ERK-2",
+    "parent": "node_228"
+  },
+  {
+    "id": "node_232",
+    "name": "MEK2 binds ERK-2",
+    "parent": "node_228"
+  },
+  {
+    "id": "node_233",
+    "name": "MEK2 phosphorylates ERK-2",
+    "parent": "node_228"
+  }
+]

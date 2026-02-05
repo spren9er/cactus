@@ -259,16 +259,6 @@ The component provides several interactive features:
 - **Hover**: Hover over nodes to highlight connections
 - **Link Filtering**: When hovering over leaf nodes, only connected links are shown
 
-### Label Behavior
-
-Leaf node labels have special behavior:
-
-- **Positioning**: Labels appear outside the circle in the direction it points
-- **Rotation**: Text rotates to follow the pointing direction but remains readable
-- **Alignment**: Left-side labels are right-aligned, right-side labels are left-aligned
-- **Filtering**: Labels only appear when connected to visible links (during hover/filtering)
-- **Limit**: When more than `labelLimit` leaves exist, labels are hidden unless filtering
-
 ## Examples
 
 ### Basic Tree

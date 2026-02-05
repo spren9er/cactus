@@ -26,7 +26,7 @@
   const datasets = [
     { value: 'flare', label: 'Flare' },
     { value: 'mammals', label: 'Mammals' },
-    { value: 'carnivora', label: 'Carnivora' },
+    { value: 'NGFPathway', label: 'NGF Pathway' },
   ];
 
   /** @param {string} dataset */
@@ -34,7 +34,7 @@
     const response = await fetch(`/${dataset}Nodes.json`);
     nodes = await response.json();
 
-    const linksResponse = await fetch(`/${dataset}Links.json`);
+    const linksResponse = await fetch(`/${dataset}Edges.json`);
     links = await linksResponse.json();
   }
 
@@ -57,8 +57,7 @@
   <p>
     <i>CactusTree</i> is an advanced visualization technique designed to
     represent complex hierarchical structures and their interconnections in
-    deeply nested trees. The Svelte library <b>cactus-tree</b> is based on the
-    research paper
+    deeply nested trees. It is described in the research paper
     <a href="https://ieeexplore.ieee.org/document/8031596">
       CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling
     </a>
@@ -70,7 +69,7 @@
   <p>
     This implementation of <i>CactusTree</i> includes several customizable
     parameters to control the visual appearance and behavior of the tree layout.
-    The source code of <b>cactus-tree</b> can be found on
+    The source code of the Svelte library <b>cactus-tree</b> can be found on
     <a href="https://github.com/spren9er/cactus">GitHub</a>.
   </p>
 
@@ -89,7 +88,7 @@
         </select>
       </label>
       <div class="dataset-summary">
-        {nodes.length} nodes, {links.length} links
+        {nodes.length} nodes, {links.length} edges
       </div>
     </div>
 
@@ -184,7 +183,7 @@
         zoom: config.zoom,
       }}
       styles={{
-        label: '#333333',
+        label: selectedDataset === 'mammals' ? 'transparent' : '#333333',
         labelFontFamily: 'monospace',
         labelLimit: 50,
         line: '#aaaaaa',
