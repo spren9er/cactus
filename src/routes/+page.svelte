@@ -23,10 +23,10 @@
   let showEdgeBundling = true;
 
   async function loadFlareData() {
-    const response = await fetch('/flareNodes.json');
+    const response = await fetch('/mammalsNodes.json');
     nodes = await response.json();
 
-    const linksResponse = await fetch('/flareLinks.json');
+    const linksResponse = await fetch('/mammalsLinks.json');
     links = await linksResponse.json();
   }
 

@@ -91,6 +91,10 @@
   let lastMouseX = 0;
   let lastMouseY = 0;
 
+  // Zoom limits computed upfront after layout calculation
+  let minZoomLimit = 0.01;
+  let maxZoomLimit = 100.0;
+
   /** @type {number|null} */
   let animationFrameId = null;
 
@@ -139,7 +143,7 @@
     cactusLayout = new CactusLayout(
       width,
       height,
-      mergedOptions.zoom,
+      mergedOptions.zoom * currentZoom,
       mergedOptions.overlap,
       mergedOptions.arcSpan,
       mergedOptions.sizeGrowthRate,
@@ -153,6 +157,61 @@
     );
 
     buildLookupMaps();
+    computeZoomLimits();
+  }
+
+  function computeZoomLimits() {
+    // Calculate limits based on base layout (zoom = 1.0) to get correct bounds
+    // First, calculate base layout without zoom factor
+    const baseLayout = new CactusLayout(
+      width,
+      height,
+      mergedOptions.zoom, // Use base zoom, not multiplied by currentZoom
+      mergedOptions.overlap,
+      mergedOptions.arcSpan,
+      mergedOptions.sizeGrowthRate,
+    );
+
+    const baseNodes = baseLayout.render(
+      nodes,
+      width / 2,
+      height / 2,
+      mergedOptions.orientation,
+    );
+
+    let minRadius = Infinity;
+    let maxRadius = 0;
+
+    // Find smallest and largest circle radii from base layout
+    baseNodes.forEach((nodeData) => {
+      const radius = nodeData.radius;
+      minRadius = Math.min(minRadius, radius);
+      maxRadius = Math.max(maxRadius, radius);
+    });
+
+    // Fallback values if no valid circles found
+    if (!isFinite(minRadius) || minRadius <= 0) {
+      minRadius = 1;
+    }
+    if (maxRadius <= 0) {
+      maxRadius = 100;
+    }
+
+    // Maximum zoom: smallest circle's diameter should be 1/10 of smaller screen dimension
+    const targetDiameter = Math.min(width, height) / 10;
+    maxZoomLimit = targetDiameter / (2 * minRadius);
+
+    // Minimum zoom: ensure largest content fits comfortably in view
+    // Make sure zoom=1.0 is always allowed as a reasonable starting point
+    minZoomLimit = Math.max(
+      0.01,
+      Math.min(0.5, Math.min(width, height) / (maxRadius * 8)),
+    );
+
+    // Debug zoom limits (reduced)
+    console.log(
+      `Zoom limits: min=${minZoomLimit.toFixed(2)}, max=${maxZoomLimit.toFixed(2)}`,
+    );
   }
 
   function buildLookupMaps() {
@@ -278,7 +337,6 @@
     ctx.save();
     ctx.clearRect(0, 0, width, height);
     ctx.translate(panX, panY);
-    ctx.scale(currentZoom, currentZoom);
   }
 
   function drawConnectingLines() {
@@ -358,7 +416,7 @@
         if (!ctx) return;
 
         // Skip nodes with screen radius less than 1px for performance
-        const screenRadius = radius * currentZoom;
+        const screenRadius = radius;
         if (screenRadius < 1) {
           filteredNodes++;
           return;
@@ -660,7 +718,7 @@
         if (!ctx) return;
 
         // Skip labels for nodes with screen radius less than 1px for performance
-        const screenRadius = radius * currentZoom;
+        const screenRadius = radius;
         if (screenRadius < 1) return;
 
         // Find applicable depth style for labels
@@ -711,8 +769,8 @@
           const text = String(node.name || node.id);
 
           if (shouldShowLeafLabel) {
-            // For leaf nodes: use font size and position text outside circle with rotation
-            const fontSize = LEAF_LABEL_FONT_SIZE;
+            // For leaf nodes: use font size based on screen radius
+            const fontSize = Math.max(8, Math.min(12, radius * 0.3));
             ctx.fillStyle = currentLabel;
             ctx.font = `${fontSize}px ${currentLabelFontFamily}`;
             ctx.textAlign = 'center';
@@ -855,9 +913,9 @@
 
     // Handle hovering (only if not dragging and we have rendered nodes)
     if (!isDragging && renderedNodes.length) {
-      // Transform mouse coordinates to account for pan and zoom
-      const transformedMouseX = (mouseX - panX) / currentZoom;
-      const transformedMouseY = (mouseY - panY) / currentZoom;
+      // Transform mouse coordinates to account for pan only
+      const transformedMouseX = mouseX - panX;
+      const transformedMouseY = mouseY - panY;
 
       // Find which circle is being hovered
       let newHoveredNodeId = null;
@@ -865,7 +923,7 @@
         const { x, y, radius, node } = nodeData;
 
         // Skip hover detection for nodes with screen radius less than 1px
-        const screenRadius = radius * currentZoom;
+        const screenRadius = radius;
         if (screenRadius < 1) continue;
 
         const distance = Math.sqrt(
@@ -920,15 +978,37 @@
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
+    // Calculate proposed zoom
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(5.0, currentZoom * zoomFactor));
+    const proposedZoom = currentZoom * zoomFactor;
 
-    // Adjust pan to zoom towards mouse position
-    const zoomRatio = newZoom / currentZoom;
-    panX = mouseX - (mouseX - panX) * zoomRatio;
-    panY = mouseY - (mouseY - panY) * zoomRatio;
+    // Debug zoom attempt (reduced)
+    console.log(`Zoom: ${currentZoom.toFixed(2)} → ${proposedZoom.toFixed(2)}`);
 
+    // Check if at bounds to prevent bouncing
+    if (proposedZoom > maxZoomLimit && currentZoom >= maxZoomLimit) {
+      console.log('Blocked: at max bound');
+      return; // At max bound, don't zoom further
+    }
+    if (proposedZoom < minZoomLimit && currentZoom <= minZoomLimit) {
+      console.log('Blocked: at min bound');
+      return; // At min bound, don't zoom further
+    }
+
+    // Apply zoom within precomputed bounds
+    const newZoom = Math.max(
+      minZoomLimit,
+      Math.min(maxZoomLimit, proposedZoom),
+    );
+
+    console.log(`New zoom will be: ${newZoom}`);
+
+    // Simple approach: just update zoom, don't modify pan
+    // This was working better - zoom happens but not centered on mouse yet
     currentZoom = newZoom;
+
+    console.log(`Zoom updated to: ${currentZoom.toFixed(2)}`);
+
     scheduleRender();
   }
 </script>
