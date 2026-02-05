@@ -91,6 +91,13 @@
   let lastMouseX = 0;
   let lastMouseY = 0;
 
+  // Track original zoom state for absolute calculations
+  let originalZoom = 1;
+  let originalMouseX = 0;
+  let originalMouseY = 0;
+  let originalPanX = 0;
+  let originalPanY = 0;
+
   // Zoom limits computed upfront after layout calculation
   let minZoomLimit = 0.01;
   let maxZoomLimit = 100.0;
@@ -1003,11 +1010,32 @@
 
     console.log(`New zoom will be: ${newZoom}`);
 
-    // Simple approach: just update zoom, don't modify pan
-    // This was working better - zoom happens but not centered on mouse yet
+    // If this is the first zoom operation, capture the original state
+    if (originalZoom === currentZoom && panX === 0 && panY === 0) {
+      originalZoom = currentZoom;
+      originalMouseX = mouseX;
+      originalMouseY = mouseY;
+      originalPanX = panX;
+      originalPanY = panY;
+    }
+
+    // Calculate absolute pan position based on total zoom from original
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const offsetFromCenterX = originalMouseX - centerX;
+    const offsetFromCenterY = originalMouseY - centerY;
+
+    // Calculate absolute pan to keep original mouse point fixed
+    const totalZoomRatio = newZoom / originalZoom;
+    panX = originalPanX + offsetFromCenterX * (1 - totalZoomRatio);
+    panY = originalPanY + offsetFromCenterY * (1 - totalZoomRatio);
+
+    // Update zoom
     currentZoom = newZoom;
 
-    console.log(`Zoom updated to: ${currentZoom.toFixed(2)}`);
+    console.log(
+      `Zoom: ${currentZoom.toFixed(2)}, Pan: (${panX.toFixed(1)}, ${panY.toFixed(1)})`,
+    );
 
     scheduleRender();
   }
