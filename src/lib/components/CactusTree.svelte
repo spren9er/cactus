@@ -106,7 +106,6 @@
   let animationFrameId = null;
 
   // Drawing constants
-  const LEAF_LABEL_FONT_SIZE = 7;
   const TEXT_PADDING = 2;
 
   /**
@@ -213,11 +212,6 @@
     minZoomLimit = Math.max(
       0.01,
       Math.min(0.5, Math.min(width, height) / (maxRadius * 8)),
-    );
-
-    // Debug zoom limits (reduced)
-    console.log(
-      `Zoom limits: min=${minZoomLimit.toFixed(2)}, max=${maxZoomLimit.toFixed(2)}`,
     );
   }
 
@@ -989,16 +983,11 @@
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
     const proposedZoom = currentZoom * zoomFactor;
 
-    // Debug zoom attempt (reduced)
-    console.log(`Zoom: ${currentZoom.toFixed(2)} → ${proposedZoom.toFixed(2)}`);
-
     // Check if at bounds to prevent bouncing
     if (proposedZoom > maxZoomLimit && currentZoom >= maxZoomLimit) {
-      console.log('Blocked: at max bound');
       return; // At max bound, don't zoom further
     }
     if (proposedZoom < minZoomLimit && currentZoom <= minZoomLimit) {
-      console.log('Blocked: at min bound');
       return; // At min bound, don't zoom further
     }
 
@@ -1008,34 +997,22 @@
       Math.min(maxZoomLimit, proposedZoom),
     );
 
-    console.log(`New zoom will be: ${newZoom}`);
-
-    // If this is the first zoom operation, capture the original state
-    if (originalZoom === currentZoom && panX === 0 && panY === 0) {
-      originalZoom = currentZoom;
-      originalMouseX = mouseX;
-      originalMouseY = mouseY;
-      originalPanX = panX;
-      originalPanY = panY;
-    }
-
-    // Calculate absolute pan position based on total zoom from original
+    // Calculate zoom-to-point: keep the world point under the mouse fixed
     const centerX = width / 2;
     const centerY = height / 2;
-    const offsetFromCenterX = originalMouseX - centerX;
-    const offsetFromCenterY = originalMouseY - centerY;
 
-    // Calculate absolute pan to keep original mouse point fixed
-    const totalZoomRatio = newZoom / originalZoom;
-    panX = originalPanX + offsetFromCenterX * (1 - totalZoomRatio);
-    panY = originalPanY + offsetFromCenterY * (1 - totalZoomRatio);
+    // World coordinates of the point under the mouse before zoom
+    const worldX = (mouseX - centerX - panX) / currentZoom;
+    const worldY = (mouseY - centerY - panY) / currentZoom;
+
+    // After zoom, calculate new pan to keep the same world point under the mouse
+    // mouseX = centerX + panX + worldX * newZoom
+    // Therefore: panX = mouseX - centerX - worldX * newZoom
+    panX = mouseX - centerX - worldX * newZoom;
+    panY = mouseY - centerY - worldY * newZoom;
 
     // Update zoom
     currentZoom = newZoom;
-
-    console.log(
-      `Zoom: ${currentZoom.toFixed(2)}, Pan: (${panX.toFixed(1)}, ${panY.toFixed(1)})`,
-    );
 
     scheduleRender();
   }
