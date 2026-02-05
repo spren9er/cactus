@@ -34,12 +34,7 @@ export function createMouseMoveHandler(state, width, height, scheduleRender) {
     state.lastMouseY = mouseY;
 
     // Handle hovering (only if not dragging and we have rendered nodes)
-    // Skip for large datasets to improve performance
-    if (
-      !state.isDragging &&
-      state.renderedNodes.length &&
-      state.renderedNodes.length < 10000
-    ) {
+    if (!state.isDragging && state.renderedNodes.length) {
       // Transform mouse coordinates to account for pan only (like original)
       const transformedMouseX = mouseX - state.panX;
       const transformedMouseY = mouseY - state.panY;

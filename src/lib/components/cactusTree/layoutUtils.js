@@ -42,11 +42,6 @@ export function calculateLayout(
     return [];
   }
 
-  // For very large datasets, limit the number of nodes to prevent UI freezing
-  const maxNodes = 5000;
-  const processedNodes =
-    nodes.length > maxNodes ? nodes.slice(0, maxNodes) : nodes;
-
   const cactusLayout = new CactusLayout(
     width,
     height,
@@ -57,7 +52,7 @@ export function calculateLayout(
   );
 
   return cactusLayout.render(
-    processedNodes,
+    nodes,
     width / 2,
     height / 2,
     mergedOptions.orientation,
