@@ -259,12 +259,20 @@ export function isPointInNode(mouseX, mouseY, nodeX, nodeY, radius) {
  * @returns {string|null} The ID of the hovered node or null
  */
 export function findHoveredNode(mouseX, mouseY, renderedNodes) {
+  let bestCandidate = null;
+  let smallestRadius = Infinity;
+
   for (const nodeData of renderedNodes) {
     const { x, y, radius, node } = nodeData;
 
     if (isPointInNode(mouseX, mouseY, x, y, radius)) {
-      return node.id;
+      // Prioritize smaller nodes (foreground) over larger nodes (background)
+      if (radius < smallestRadius) {
+        smallestRadius = radius;
+        bestCandidate = node.id;
+      }
     }
   }
-  return null;
+
+  return bestCandidate;
 }
