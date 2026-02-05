@@ -21,17 +21,29 @@
   };
 
   let showEdgeBundling = true;
+  let selectedDataset = 'flare';
 
-  async function loadFlareData() {
-    const response = await fetch('/mammalsNodes.json');
+  const datasets = [
+    { value: 'flare', label: 'Flare' },
+    { value: 'mammals', label: 'Mammals' },
+    { value: 'carnivora', label: 'Carnivora' },
+  ];
+
+  /** @param {string} dataset */
+  async function loadDataset(dataset) {
+    const response = await fetch(`/${dataset}Nodes.json`);
     nodes = await response.json();
 
-    const linksResponse = await fetch('/mammalsLinks.json');
+    const linksResponse = await fetch(`/${dataset}Links.json`);
     links = await linksResponse.json();
   }
 
+  function handleDatasetChange() {
+    loadDataset(selectedDataset);
+  }
+
   onMount(() => {
-    loadFlareData();
+    loadDataset(selectedDataset);
   });
 </script>
 
@@ -58,20 +70,29 @@
   <p>
     This implementation of <i>CactusTree</i> includes several customizable
     parameters to control the visual appearance and behavior of the tree layout.
-    The dataset of example below represents the software architecture and
-    dependency structure of the <i>Flare ActionScript</i> visualization library,
-    originally featured in this
-    <a href="https://observablehq.com/@d3/hierarchical-edge-bundling"
-      >Observable notebook</a
-    >.
-  </p>
-
-  <p>
-    The Svelte library <b>cactus-tree</b> can be found on
+    The source code of <b>cactus-tree</b> can be found on
     <a href="https://github.com/spren9er/cactus">GitHub</a>.
   </p>
 
   <div class="controls">
+    <div class="dataset-selector">
+      <label for="dataset">
+        Dataset:
+        <select
+          id="dataset"
+          bind:value={selectedDataset}
+          on:change={handleDatasetChange}
+        >
+          {#each datasets as dataset (dataset.value)}
+            <option value={dataset.value}>{dataset.label}</option>
+          {/each}
+        </select>
+      </label>
+      <div class="dataset-summary">
+        {nodes.length} nodes, {links.length} links
+      </div>
+    </div>
+
     <div class="control-grid">
       <div class="control-group">
         <label for="overlap">
@@ -264,6 +285,40 @@
   .control-group input[type='range'] {
     width: 100%;
     margin-top: 5px;
+  }
+
+  .dataset-selector {
+    text-align: center;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .dataset-selector label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  .dataset-selector select {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    background-color: white;
+    color: #333;
+  }
+
+  .dataset-summary {
+    font-size: 11px;
+    color: #888;
+    font-style: italic;
   }
 
   .visualization {
