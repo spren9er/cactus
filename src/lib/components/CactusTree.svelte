@@ -2,20 +2,19 @@
   import { onMount } from 'svelte';
   import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 
-  import { setupCanvas } from '$lib/components/cactus-tree/canvas-utils.js';
-  import { drawNodes } from '$lib/components/cactus-tree/draw-node.js';
+  import { setupCanvas } from '$lib/components/cactusTree/canvasUtils.js';
+  import { drawNodes } from '$lib/components/cactusTree/drawNode.js';
   import {
     drawEdges,
     drawConnectingLines,
-  } from '$lib/components/cactus-tree/draw-edge.js';
-  import { drawLabels } from '$lib/components/cactus-tree/draw-label.js';
-  import { createMouseHandlers } from '$lib/components/cactus-tree/mouse-handlers.js';
+  } from '$lib/components/cactusTree/drawEdge.js';
+  import { drawLabels } from '$lib/components/cactusTree/drawLabel.js';
+  import { createMouseHandlers } from '$lib/components/cactusTree/mouseHandlers.js';
   import {
     calculateLayout,
     computeZoomLimits,
     buildLookupMaps,
-    getPerformanceStats as getStats,
-  } from '$lib/components/cactus-tree/layout-utils.js';
+  } from '$lib/components/cactusTree/layoutUtils.js';
 
   /** @type {{ width: number, height: number, nodes: Array<{id: string, name: string, parent: string|null, weight?: number}>, links?: Array<{source: string, target: string}>, options?: {overlap?: number, arcSpan?: number, sizeGrowthRate?: number, orientation?: number, zoom?: number}, styles?: {fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, edge?: string, edgeWidth?: number, edgeOpacity?: number, highlightFill?: string, highlightStroke?: string, highlight?: boolean, labelLimit?: number, depths?: Array<{depth: number, fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, lineWidth?: number, line?: string, highlightFill?: string, highlightStroke?: string, highlight?: boolean}>}, pannable?: boolean, zoomable?: boolean }} */
   let {
@@ -77,11 +76,6 @@
   let depthStyleCache = new SvelteMap();
   let hierarchicalPathCache = new SvelteMap();
   let parentToChildrenNodeMap = new SvelteMap();
-
-  // Performance tracking
-  let totalNodes = $state(0);
-  let filteredNodes = $state(0);
-  let renderedNodesCount = $state(0);
 
   // Interaction state
   let hoveredNodeId = $state(null);
@@ -155,11 +149,6 @@
   function draw() {
     if (!canvas || !ctx) return;
 
-    // Reset performance counters
-    totalNodes = renderedNodes.length;
-    filteredNodes = 0;
-    renderedNodesCount = 0;
-
     // Clear and set up canvas context (like original)
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
@@ -178,18 +167,14 @@
     );
 
     // Draw nodes
-    const nodeStats = /** @type {{ rendered: number, filtered: number }} */ (
-      drawNodes(
-        ctx,
-        renderedNodes,
-        hoveredNodeId,
-        mergedStyle,
-        depthStyleCache,
-        negativeDepthNodes,
-      )
+    drawNodes(
+      ctx,
+      renderedNodes,
+      hoveredNodeId,
+      mergedStyle,
+      depthStyleCache,
+      negativeDepthNodes,
     );
-    renderedNodesCount = nodeStats.rendered;
-    filteredNodes += nodeStats.filtered;
 
     // Draw edges
     const edgeNodeIds = drawEdges(
@@ -323,7 +308,6 @@
   });
 
   $effect(() => {
-    // Watch all reactive dependencies
     void nodes;
     void links;
     void mergedOptions.overlap;
@@ -341,11 +325,6 @@
       scheduleRender();
     }
   });
-
-  // Export performance stats for debugging
-  export function getPerformanceStats() {
-    return getStats(totalNodes, renderedNodesCount, filteredNodes);
-  }
 </script>
 
 <canvas
@@ -358,4 +337,5 @@
   onmouseup={mouseHandlers?.onMouseUp}
   onmouseleave={mouseHandlers?.onMouseLeave}
   onwheel={mouseHandlers?.onWheel}
-></canvas>
+>
+</canvas>

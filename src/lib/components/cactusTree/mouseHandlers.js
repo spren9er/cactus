@@ -3,7 +3,7 @@
  * Handles pan, zoom, hover, and other mouse interactions
  */
 
-import { findHoveredNode } from './draw-node.js';
+import { findHoveredNode } from './drawNode.js';
 
 /**
  * Creates mouse move handler

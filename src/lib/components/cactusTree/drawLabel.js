@@ -3,7 +3,7 @@
  * Handles rendering of text labels on nodes with proper positioning and truncation
  */
 
-import { setCanvasStyles } from './canvas-utils.js';
+import { setCanvasStyles } from './canvasUtils.js';
 
 /**
  * Text padding constant for positioning labels outside node circles

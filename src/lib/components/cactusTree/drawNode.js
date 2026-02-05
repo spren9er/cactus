@@ -3,7 +3,7 @@
  * Handles rendering of individual nodes with proper styling and performance optimization
  */
 
-import { setCanvasStyles } from './canvas-utils.js';
+import { setCanvasStyles } from './canvasUtils.js';
 
 /**
  * Gets the effective style value for a given property, checking depth-specific overrides first

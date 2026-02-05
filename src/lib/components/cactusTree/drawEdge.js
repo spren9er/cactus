@@ -3,7 +3,7 @@
  * Handles rendering of connections between nodes with hierarchical bundling
  */
 
-import { setCanvasStyles } from './canvas-utils.js';
+import { setCanvasStyles } from './canvasUtils.js';
 
 /**
  * Builds hierarchical path between two nodes for edge bundling
