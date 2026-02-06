@@ -31,6 +31,7 @@
     { value: 'flare', label: 'Flare' },
     { value: 'mammals', label: 'Mammals' },
     { value: 'NGFPathway', label: 'NGF Pathway' },
+    { value: 'rill', label: 'Rill' },
   ];
 
   /** @param {string} dataset */
@@ -38,8 +39,12 @@
     const response = await fetch(`/${dataset}Nodes.json`);
     nodes = await response.json();
 
-    const linksResponse = await fetch(`/${dataset}Edges.json`);
-    links = await linksResponse.json();
+    if (dataset === 'rill') {
+      links = [];
+    } else {
+      const linksResponse = await fetch(`/${dataset}Edges.json`);
+      links = await linksResponse.json();
+    }
   }
 
   function handleDatasetChange() {
