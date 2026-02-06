@@ -191,9 +191,7 @@ export function shouldShowLabel(
       visibleNodeIds,
     );
   } else {
-    // For non-leaf nodes: show if radius is large enough and label style is valid
     return (
-      radius > 10 &&
       labelStyle.color !== 'none' &&
       labelStyle.color !== 'transparent'
     );
@@ -229,9 +227,10 @@ export function drawLabels(
 ) {
   if (!ctx || !renderedNodes.length) return;
 
-  // Get canvas dimensions
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
+  // Get canvas logical dimensions (account for devicePixelRatio scaling)
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const width = ctx.canvas.width / devicePixelRatio;
+  const height = ctx.canvas.height / devicePixelRatio;
 
   // Helper function to check if node is in viewport
   const isInViewport =
