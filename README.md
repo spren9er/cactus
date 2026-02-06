@@ -10,6 +10,8 @@ A modern Svelte library for visualizing hierarchical data structures using the *
 
 The library **cactus-tree** is based on the research paper *[CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling](https://ieeexplore.ieee.org/document/8031596)* by Tommy Dang and Angus Forbes. This implementation provides both a ready-to-use Svelte component and a standalone layout algorithm for creating interactive tree visualizations.
 
+See [cactus.spren9er.de](https://cactus.spren9er.de) for a live demo and interactive playground.
+
 ## Features
 
 - **Fractal-based Tree Layout** - Recursively stacks child nodes on parent nodes
