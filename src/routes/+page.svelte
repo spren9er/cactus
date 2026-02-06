@@ -222,9 +222,11 @@
           {
             depth: -1,
             label: '#333333',
-            fill: '#999999',
-            strokeWidth: 0,
+            fill: '#e2575a',
+            stroke: 'transparent',
+            strokeWidth: 2,
             highlightFill: '#e2575a',
+            highlightStroke: '#333333',
           },
           {
             depth: 0,

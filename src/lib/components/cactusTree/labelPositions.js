@@ -94,9 +94,8 @@ export class Link {
   }
 }
 
-
 /**
- * Monte Carlo label positioning algorithm (adapted from labeler.ts)
+ * Monte Carlo label positioning algorithm
  * Uses simulated annealing to find optimal label positions
  */
 export class CircleAwareLabeler {
@@ -116,10 +115,10 @@ export class CircleAwareLabeler {
     /** @type {any[]} */
     this.links = [];
 
-    // Random number generator (same seed as labeler.ts for consistency)
+    // Random number generator (same seed for consistency)
     this.rand = new Rand('42', PRNG.mulberry32);
 
-    // Energy function weights (from labeler.ts)
+    // Energy function weights
     this.wLeaderLineLength = options.wLeaderLineLength || 0.2;
     this.wLeaderLineIntersection = options.wLeaderLineIntersection || 1.0;
     this.wLabelLabelOverlap = options.wLabelLabelOverlap || 30.0;
@@ -223,7 +222,15 @@ export class CircleAwareLabeler {
   /**
    * Check if label overlaps with a circle using proper circle-rectangle collision
    */
-  labelOverlapsCircle(rectX, rectY, rectWidth, rectHeight, circleX, circleY, circleRadius) {
+  labelOverlapsCircle(
+    rectX,
+    rectY,
+    rectWidth,
+    rectHeight,
+    circleX,
+    circleY,
+    circleRadius,
+  ) {
     const closestX = Math.max(rectX, Math.min(circleX, rectX + rectWidth));
     const closestY = Math.max(rectY, Math.min(circleY, rectY + rectHeight));
     const distance = Math.sqrt(
@@ -393,10 +400,11 @@ export class CircleAwareLabeler {
     label.y -= anchor.y;
 
     // Get anchor point relative to origin
-    const anchorPoint = this.getLabelAnchorPoint(
-      label,
-      { x: 0, y: 0, radius: 0 },
-    );
+    const anchorPoint = this.getLabelAnchorPoint(label, {
+      x: 0,
+      y: 0,
+      radius: 0,
+    });
 
     // Rotate anchor point
     const xNewAnchorPoint = anchorPoint.x * c - anchorPoint.y * s;
@@ -648,13 +656,14 @@ function calculateLabelAnchorPoint(
   const dx = labelCenterX - anchorX;
   const dy = labelCenterY - anchorY;
   const angle = Math.atan2(dy, dx);
-  
+
   // Normalize angle to [0, 2π)
-  const normalizedAngle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-  
+  const normalizedAngle =
+    ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
   // Convert to degrees for easier reasoning
   const degrees = (normalizedAngle * 180) / Math.PI;
-  
+
   // Use 8 directions with 45-degree sectors
   // Right: 337.5° - 22.5° (0°)
   if (degrees >= 337.5 || degrees < 22.5) {
@@ -716,9 +725,9 @@ export class LabelPositioner {
     this.fontFamily = fontFamily;
     this.fontSize = fontSize;
     this.options = {
-      minRadius: 2,  // Lower threshold to show labels for smaller nodes
+      minRadius: 2, // Lower threshold to show labels for smaller nodes
       maxRadius: 50,
-      labelPadding: 2,  // 2px padding to keep labels close to links
+      labelPadding: 2, // 2px padding to keep labels close to links
       circleMargin: 5, // Minimum distance from circle edge when placing outside
       ...options,
     };
@@ -830,63 +839,64 @@ export class LabelPositioner {
   findOutsidePosition(nodeX, nodeY, nodeRadius, labelWidth, labelHeight) {
     const margin = this.options.circleMargin;
     const minDistance = nodeRadius + margin;
-    
+
     // All 8 directions to try
     const angles = [
-      Math.PI,              // Left (180°)
-      (3 * Math.PI) / 2,    // Top (270°)
-      (5 * Math.PI) / 4,    // Top-left (225°)
-      (7 * Math.PI) / 4,    // Top-right (315°)
-      0,                    // Right (0°)
-      Math.PI / 2,          // Bottom (90°)
-      (3 * Math.PI) / 4,    // Bottom-left (135°)
-      Math.PI / 4,          // Bottom-right (45°)
+      Math.PI, // Left (180°)
+      (3 * Math.PI) / 2, // Top (270°)
+      (5 * Math.PI) / 4, // Top-left (225°)
+      (7 * Math.PI) / 4, // Top-right (315°)
+      0, // Right (0°)
+      Math.PI / 2, // Bottom (90°)
+      (3 * Math.PI) / 4, // Bottom-left (135°)
+      Math.PI / 4, // Bottom-right (45°)
     ];
-    
+
     let bestAngle = angles[0];
     let bestScore = -Infinity;
-    
+
     // Score each direction by distance to nearest circle in that direction
     for (const angle of angles) {
       const distance = minDistance + Math.max(labelWidth, labelHeight) / 2;
       const centerX = nodeX + Math.cos(angle) * distance;
       const centerY = nodeY + Math.sin(angle) * distance;
-      
+
       const labelX = centerX - labelWidth / 2;
       const labelY = centerY - labelHeight / 2;
-      
+
       // Calculate score = minimum distance to nearby circles
       // Only consider circles within canvas dimensions to avoid coordinate space issues
       let minDistToCircle = Infinity;
       const searchRadius = Math.max(this.width, this.height); // Only check circles within canvas bounds
-      
+
       for (const nodeData of this.renderedNodes) {
         const { x, y, radius } = nodeData;
         if (x === nodeX && y === nodeY) continue;
-        
+
         // Skip circles that are too far away (outside canvas)
         const distToNode = Math.sqrt((nodeX - x) ** 2 + (nodeY - y) ** 2);
         if (distToNode > searchRadius) continue;
-        
-        const dist = Math.sqrt((centerX - x) ** 2 + (centerY - y) ** 2) - radius;
+
+        const dist =
+          Math.sqrt((centerX - x) ** 2 + (centerY - y) ** 2) - radius;
         minDistToCircle = Math.min(minDistToCircle, dist);
       }
-      
+
       // Prefer directions with more space
       if (minDistToCircle > bestScore) {
         bestScore = minDistToCircle;
         bestAngle = angle;
       }
     }
-    
+
     // Place label in best direction (in world space, no bounds checking)
     const distance = minDistance + Math.max(labelWidth, labelHeight) / 2;
     const centerX = nodeX + Math.cos(bestAngle) * distance;
     const centerY = nodeY + Math.sin(bestAngle) * distance;
-    
+
     const labelX = centerX - labelWidth / 2;
     const labelY = centerY - labelHeight / 2;
-    
+
     return { x: labelX, y: labelY };
   }
 
@@ -1023,28 +1033,26 @@ export class LabelPositioner {
     // This prevents coordinate space issues when zooming
     const nodesWithLabels = this.renderedNodes;
 
-    // Use Monte Carlo labeler algorithm for outside labels
+    // Use Monte Carlo algorithm for placing outside labels
     const labeler = new CircleAwareLabeler(
       labels,
       anchors,
-      nodesWithLabels,  // Only nodes being labeled, not all nodes
+      nodesWithLabels, // Only nodes being labeled, not all nodes
       this.width,
       this.height,
       {
-        // Energy weights - from labeler.ts defaults
-        wLeaderLineLength: 0.2,
+        xwLeaderLineLength: 0.05,
         wLeaderLineIntersection: 1.0,
         wLabelLabelOverlap: 30.0,
         wLabelAnchorOverlap: 30.0,
         wOrientation: 3.0,
-        // Movement constraints - from labeler.ts defaults
         maxMove: 15.0,
         maxAngle: Math.PI / 4,
         labelAnchorPadding: 2,
       },
     );
 
-    // Run simulated annealing - from labeler.ts default
+    // Run simulated annealing
     labeler.call(120);
 
     // Return updated label data
@@ -1121,7 +1129,6 @@ export class LabelPositioner {
       links: finalLinks,
     };
   }
-
 
   /**
    * Clean up canvas resources
