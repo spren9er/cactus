@@ -114,7 +114,7 @@ interface Styles {
   labelPadding?: number;       // Padding around label text in pixels (default: 0.5)
   labelMinFontSize?: number;   // Minimum label font size (default: 8)
   labelMaxFontSize?: number;   // Maximum label font size (default: 14)
-  labelLimit?: number;         // Maximum number of labels to show (default: 50)
+  labelLimit?: number;         // Maximum number of labels to show (default: 30)
                                // Shows labels for the N largest nodes by radius (all types)
                                // Set to 0 to hide all labels (except when hovering)
 

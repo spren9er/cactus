@@ -59,7 +59,7 @@
     highlightFill: '#ffcc99',
     highlightStroke: '#ff6600',
     highlight: true,
-    labelLimit: 50,
+    labelLimit: 30,
   };
 
   // Merge options and styles
