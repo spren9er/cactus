@@ -241,13 +241,14 @@ export function drawLabels(
         /** @type {{x:number,y:number,radius:number}} */ (nodeData);
       const screenX = x + panX;
       const screenY = y + panY;
-      const margin = radius * 2; // Add some margin for labels outside nodes
-
+      
+      // Check if the node circle actually intersects with the viewport
+      // A circle is in viewport if its center is within viewport + radius distance
       return (
-        screenX + margin >= 0 &&
-        screenX - margin <= width &&
-        screenY + margin >= 0 &&
-        screenY - margin <= height
+        screenX + radius >= 0 &&
+        screenX - radius <= width &&
+        screenY + radius >= 0 &&
+        screenY - radius <= height
       );
     };
 
