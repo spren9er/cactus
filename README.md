@@ -319,7 +319,7 @@ The component provides several interactive features:
     overlap: -1.1,                // Gaps between nodes
     arcSpan: 2 * Math.PI,         // Full circle layout
     orientation: 7 / 9 * Math.PI, // Leftward growth
-    zoom: 1.5,
+    zoom: 0.7                     // Zoom out to see full chart
   }}
 />
 ```
@@ -327,3 +327,5 @@ The component provides several interactive features:
 <div align="center">
   <img src="https://github.com/spren9er/cactus-tree/blob/main/docs/images/cactus_tree_advanced.png?raw=true" alt="cactus-tree-advanced" width="75%" height="75%">
 </div>
+
+For a negative overlap parameter, nodes are connected by links.
