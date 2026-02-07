@@ -235,7 +235,7 @@
           maxFontSize: 14,
           padding: 1,
           link: {
-            length: 8,
+            length: 7,
             strokeColor: '#aaaaaa',
             strokeOpacity: 1,
             strokeWidth: 1,

@@ -66,8 +66,8 @@
             strokeColor?: string,
             strokeOpacity?: number,
             strokeWidth?: number,
-            padding?: number,
             length?: number
+            padding?: number,
           }
         },
         line?: {
@@ -103,8 +103,8 @@
               strokeColor?: string,
               strokeOpacity?: number,
               strokeWidth?: number,
-              padding?: number,
               length?: number
+              padding?: number,
             }
           },
           line?: {
