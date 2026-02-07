@@ -46,6 +46,8 @@ npm install cactuz
 <CactusTree width={800} height={600} {nodes} {links} />
 ```
 
+---
+
 ## API Reference
 
 ### CactusTree Component
@@ -69,7 +71,7 @@ npm install cactuz
 interface Node {
   id: string;            // Unique identifier
   name: string;          // Display name
-  parent: string | null; // Parent node ID (null for root)
+  parent: string | null; // Parent node ID
   weight?: number;       // Optional explicit weight
 }
 ```
@@ -91,90 +93,107 @@ interface Options {
   arcSpan?: number;        // Arc span in radians (default: 5π/4)
   sizeGrowthRate?: number; // Size growth rate (default: 0.75)
   orientation?: number;    // Root orientation in radians (default: π/2)
-  zoom?: number;           // Zoom level (default: 1.0)
+  zoom?: number;           // Layout zoom factor (default: 1.0)
+  numLabels?: number;      // Number of labels (default: 30)
 }
 ```
 
+**Note:** Negative values create gaps and connect nodes with links.
+
 #### Styles
+
+The `styles` prop is a nested object with optional groups and an optional `depths` array containing per-depth overrides. Per-depth overrides take precedence over global group values.
 
 ```typescript
 interface Styles {
-  // Node appearance
-  fill?: string;             // Node fill color (default: '#efefef')
-  fillOpacity?: number;      // Node fill opacity (default: 1)
-  stroke?: string;           // Node stroke color (default: '#333333')
-  strokeWidth?: number;      // Node stroke width (default: 1)
-  strokeOpacity?: number;    // Node stroke opacity (default: 1)
-
-  // Labels
-  label?: string;            // Label color (default: '#333333')
-  labelFontFamily?: string;  // Label font (default: 'monospace')
-  labelLink?: string;        // Label link line color (default: '#333333')
-  labelLinkWidth?: number;   // Label link line width (default: 0.5)
-  labelLinkPadding?: number; // Gap between circle and link start in pixels (default: 0)
-  labelLinkLength?: number;  // Length of visible link line in pixels (default: 5)
-  labelPadding?: number;     // Padding around label text in pixels (default: 1)
-  labelMinFontSize?: number; // Minimum label font size (default: 8)
-  labelMaxFontSize?: number; // Maximum label font size (default: 14)
-  labelLimit?: number;       // Maximum number of labels to show (default: 30)
-                             // Shows labels for the N largest nodes by radius (all types)
-                             // Set to 0 to hide all labels (except when hovering)
-
-  // Connections
-  line?: string;             // Tree line color (default: '#333333')
-  lineWidth?: number;        // Tree line width (default: 1)
-  edge?: string;             // Link color (default: '#ff6b6b')
-  edgeWidth?: number;        // Link width (default: 1)
-  edgeOpacity?: number;      // Link opacity (default: 0.1, full opacity when hovering leaf nodes with links)
-
-  // Hover effects
-  highlight?: boolean;       // Enable hover effects (default: true)
-  highlightFill?: string;    // Hover fill color (default: '#ffcc99')
-  highlightStroke?: string;  // Hover stroke color (default: '#ff6600')
-
-  // Depth-specific styling
-  depths?: DepthStyle[];     // Per-depth style overrides
+  node?: {
+    fillColor?: string;
+    fillOpacity?: number;
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    highlight?: {
+      fillColor?: string;
+      fillOpacity?: number;
+      strokeColor?: string;
+      strokeOpacity?: number;
+      strokeWidth?: number;
+    }
+  };
+  edge?: {
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    highlight?: {
+      strokeColor?: string;
+      strokeOpacity?: number;
+      strokeWidth?: number;
+    }
+  };
+  label?: {
+    textColor?: string;
+    textOpacity?: number;
+    fontFamily?: string;
+    minFontSize?: number;
+    maxFontSize?: number;
+    fontWeight?: string;
+    padding?: number;
+    link?: {
+      strokeColor?: string;
+      strokeOpacity?: number;
+      strokeWidth?: number;
+      padding?: number;
+    };
+  };
+  line?: {
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+  };
+  depths?: DepthStyle[]; // Per-depth overrides
 }
 ```
 
 #### Depth-Specific Styling
 
+Each item in `styles.depths` must include a `depth` integer.
+
 ```typescript
 interface DepthStyle {
-  depth: number; // Tree depth (0 = root, -1 = leaves)
-  fill?: string;
-  fillOpacity?: number;
-  stroke?: string;
-  strokeWidth?: number;
-  strokeOpacity?: number;
-  label?: string;
-  labelFontFamily?: string;
-  line?: string;
-  lineWidth?: number;
-  highlight?: boolean;
-  highlightFill?: string;
-  highlightStroke?: string;
+  depth: number; // 0 = root, positive = deeper levels, negative values may be used for leaf-oriented overrides (implementation uses mapping for negative depths)
+  node?: {
+    fillColor?: string;
+    fillOpacity?: number;
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+  };
+  label?: {
+    textColor?: string;
+    textOpacity?: number;
+    fontFamily?: string;
+    minFontSize?: number;
+    maxFontSize?: number;
+    fontWeight?: string;
+    padding?: number;
+    link?: {
+      strokeColor?: string;
+      strokeOpacity?: number;
+      strokeWidth?: number;
+      padding?: number;
+    };
+  };
+  line?: {
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+  };
 }
 ```
 
 ### CactusLayout Class
 
-For custom implementations or non-Svelte environments, you can use the layout algorithm directly:
-
-```javascript
-import { CactusLayout } from 'cactuz';
-
-const layout = new CactusLayout(
-  800,       // width
-  600,       // height
-  1.0,       // zoom
-  0.5,       // overlap
-  Math.PI,   // arcSpan
-  0.75,      // sizeGrowthRate
-);
-
-const nodeData = layout.render(nodes, 400, 300, -Math.PI / 2);
-```
+For non-Svelte usage you can use the layout algorithm directly.
 
 #### Constructor
 
@@ -222,103 +241,97 @@ interface NodeData {
 }
 ```
 
+```javascript
+import { CactusLayout } from 'cactuz';
+
+const layout = new CactusLayout(
+  800,       // width
+  600,       // height
+  1.0,       // zoom
+  0.5,       // overlap
+  Math.PI,   // arcSpan
+  0.75,      // sizeGrowthRate
+);
+
+const nodeData = layout.render(nodes, 400, 300, -Math.PI / 2);
+```
+
 ## Advanced Usage
 
-### Custom Styling Example
+### Global and Depth-based Styling Example
+
+This example demonstrates styles and per-depth overrides. It shows a global style for general appearance, then customizes roots and leaves via `depths`.
 
 ```svelte
 <script>
   import { CactusTree } from 'cactuz';
 
   const styles = {
-    fill: '#f0f8ff',
-    stroke: '#4682b4',
-    strokeWidth: 2,
-    label: '#2c3e50',
-    labelFontFamily: 'Arial, sans-serif',
-    labelLimit: 100,
-    edge: '#e74c3c',
-    edgeWidth: 3,
-    highlightFill: '#ffd700',
-    highlightStroke: '#ff8c00',
+    node: {
+      fillColor: '#f0f8ff',
+      strokeColor: '#4682b4',
+      strokeWidth: 2,
+    },
+    edge: {
+      strokeColor: '#e74c3c',
+      strokeOpacity: 0.2,
+      strokeWidth: 2,
+    },
+    label: {
+      textColor: '#2c3e50',
+      textOpacity: 1,
+      fontFamily: 'Arial, sans-serif',
+      minFontSize: 8,
+      maxFontSize: 16,
+      padding: 2,
+      link: {
+        strokeColor: '#aaaaaa',
+        strokeOpacity: 1,
+        strokeWidth: 0.6,
+        padding: 1,
+      },
+    },
+    line: {
+      strokeColor: '#cccccc',
+      strokeOpacity: 1,
+      strokeWidth: 1,
+    },
+    node: {
+      highlight: {
+        fillColor: '#ffd700',
+        strokeColor: '#ff8c00',
+      },
+    },
     depths: [
       {
-        depth: 0, // Root styling
-        fill: '#2c3e50',
-        stroke: '#ecf0f1',
-        label: '#ecf0f1',
+        depth: 0, // root
+        node: { fillColor: '#2c3e50', strokeColor: '#ecf0f1' },
+        label: { textColor: '#ecf0f1' },
       },
       {
-        depth: -1, // Leaf styling
-        fill: '#e74c3c',
-        stroke: '#c0392b',
-        label: '#2c3e50',
+        depth: -1, // leaves
+        node: { fillColor: '#e74c3c', strokeColor: '#c0392b' },
+        label: { textColor: '#ffffff' },
       },
     ],
   };
 </script>
 
-<CactusTree {width} {height} {nodes} {links} {styles} />
+<CactusTree width={800} height={600} {nodes} {links} styles={styles} />
 ```
 
-### Interactive Features
-
-The component provides several interactive features:
-
-- **Pan**: Click and drag to pan the visualization
-- **Zoom**: Use mouse wheel to zoom in/out
-- **Hover**: Hover over nodes to highlight connections
-
-## Examples
-
-### Basic Tree
-
-```svelte
-<CactusTree
-  width={600}
-  height={400}
-  nodes={[
-    { id: 'a', name: 'Root', parent: null },
-    { id: 'b', name: 'Branch 1', parent: 'a' },
-    { id: 'c', name: 'Branch 2', parent: 'a' },
-    { id: 'd', name: 'Leaf 1', parent: 'b' },
-    { id: 'e', name: 'Leaf 2', parent: 'b' },
-  ]}
-/>
-```
-
-### With Edge Bundling
+### Negative Overlap and Link Filtering
 
 ```svelte
 <CactusTree
   width={800}
   height={600}
   {nodes}
-  links={[
-    { source: 'leaf1', target: 'leaf3' },
-    { source: 'leaf2', target: 'leaf4' },
-  ]}
-  styles={{
-    edge: '#3498db',
-    edgeOpacity: 0.3,
-    edgeWidth: 2,
-  }}
-/>
-```
-
-### Negative Overlap and Link Filtering
-
-
-```svelte
-<CactusTree
-  width={1000}
-  height={800}
-  {nodes}
   options={{
-    overlap: -1.1,                // Gaps between nodes
-    arcSpan: 2 * Math.PI,         // Full circle layout
-    orientation: 7 / 9 * Math.PI, // Leftward growth
-    zoom: 0.7                     // Zoom out to see full chart
+    overlap: -1.1,                  // Gaps between nodes
+    arcSpan: 2 * Math.PI,           // Full circle layout (radians)
+    orientation: (7 / 9) * Math.PI, // Root orientation (radians)
+    zoom: 0.7
   }}
 />
 ```
@@ -327,5 +340,4 @@ The component provides several interactive features:
   <img src="https://github.com/spren9er/cactuz/blob/main/docs/images/cactus_tree_advanced.png?raw=true" alt="cactus-tree-advanced" width="75%" height="75%">
 </div>
 
-For a negative overlap parameter, nodes are connected by links.
-Also, when hovering over leaf nodes, only the links connected to that node are shown, while all other links are hidden. This allows for better readability in dense visualizations.
+For a negative overlap parameter, nodes are connected by links. Also, when hovering over leaf nodes, only the links connected to that node are shown, while all other links are hidden. This allows for better readability in dense visualizations.

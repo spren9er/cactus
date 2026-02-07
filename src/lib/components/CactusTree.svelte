@@ -16,7 +16,22 @@
     buildLookupMaps,
   } from '$lib/components/cactusTree/layoutUtils.js';
 
-  /** @type {{ width: number, height: number, nodes: Array<{id: string, name: string, parent: string|null, weight?: number}>, links?: Array<{source: string, target: string}>, options?: {overlap?: number, arcSpan?: number, sizeGrowthRate?: number, orientation?: number, zoom?: number}, styles?: {fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, labelLink?: string, labelLinkWidth?: number, labelLinkPadding?: number, labelLinkLength?: number, labelPadding?: number, labelMinFontSize?: number, labelMaxFontSize?: number, lineWidth?: number, line?: string, edge?: string, edgeWidth?: number, edgeOpacity?: number, highlightFill?: string, highlightStroke?: string, highlight?: boolean, labelLimit?: number, depths?: Array<{depth: number, fill?: string, fillOpacity?: number, stroke?: string, strokeWidth?: number, strokeOpacity?: number, label?: string, labelFontFamily?: string, labelLink?: string, labelLinkWidth?: number, lineWidth?: number, line?: string, highlightFill?: string, highlightStroke?: string, highlight?: boolean}>}, pannable?: boolean, zoomable?: boolean }} */
+  /** @type {{
+      width: number,
+      height: number,
+      nodes: Array<{id: string, name: string, parent: string|null, weight?: number}>,
+      links?: Array<{source: string, target: string}>,
+      options?: {overlap?: number, arcSpan?: number, sizeGrowthRate?: number, orientation?: number, zoom?: number, numLabels?: number},
+      styles?: {
+        node?: any,
+        edge?: any,
+        label?: any,
+        line?: any,
+        depths?: Array<{ depth: number, node?: any, label?: any, line?: any }>,
+      },
+      pannable?: boolean,
+      zoomable?: boolean
+    }} */
   let {
     width,
     height,
@@ -34,37 +49,81 @@
     sizeGrowthRate: 0.75,
     orientation: Math.PI / 2,
     zoom: 1.0,
+    numLabels: 30,
   };
 
   const defaultStyle = {
-    fill: '#efefef',
-    fillOpacity: 1,
-    stroke: '#333333',
-    strokeWidth: 1,
-    strokeOpacity: 1,
-    label: '#333333',
-    labelFontFamily: 'monospace',
-    labelLink: '#333333',
-    labelLinkWidth: 0.5,
-    labelLinkPadding: 0,
-    labelLinkLength: 5,
-    labelPadding: 1,
-    labelMinFontSize: 8,
-    labelMaxFontSize: 14,
-    lineWidth: 1,
-    line: '#333333',
-    edge: '#ff6b6b',
-    edgeWidth: 1,
-    edgeOpacity: 0.1,
-    highlightFill: '#ffcc99',
-    highlightStroke: '#ff6600',
-    highlight: true,
-    labelLimit: 30,
+    node: {
+      fillColor: '#efefef',
+      fillOpacity: 1,
+      strokeColor: '#333333',
+      strokeOpacity: 1,
+      strokeWidth: 1,
+      highlight: {
+        fillColor: '#ffcc99',
+        fillOpacity: 1,
+        strokeColor: '#ff6600',
+        strokeOpacity: 1,
+        strokeWidth: 1,
+        enabled: true,
+      },
+    },
+    edge: {
+      strokeColor: '#ff6b6b',
+      strokeOpacity: 0.1,
+      strokeWidth: 1,
+      highlight: {
+        strokeColor: '#ff6600',
+        strokeOpacity: 1,
+        strokeWidth: 1,
+      },
+    },
+    label: {
+      textColor: '#333333',
+      textOpacity: 1,
+      fontFamily: 'monospace',
+      minFontSize: 8,
+      maxFontSize: 14,
+      fontWeight: 'normal',
+      padding: 1,
+      link: {
+        strokeColor: '#333333',
+        strokeOpacity: 1,
+        strokeWidth: 0.5,
+        padding: 0,
+      },
+    },
+    line: {
+      strokeColor: '#333333',
+      strokeOpacity: 1,
+      strokeWidth: 1,
+    },
+    depths: [],
   };
 
   // Merge options and styles
   const mergedOptions = $derived({ ...defaultOptions, ...options });
-  const mergedStyle = $derived({ ...defaultStyle, ...styles });
+  const mergedStyle = $derived({
+    node: {
+      ...(defaultStyle.node || {}),
+      ...(styles.node || {}),
+      highlight: {
+        ...((defaultStyle.node && defaultStyle.node.highlight) || {}),
+        ...((styles.node && styles.node.highlight) || {}),
+      },
+    },
+    edge: {
+      ...(defaultStyle.edge || {}),
+      ...(styles.edge || {}),
+      highlight: {
+        ...((defaultStyle.edge && defaultStyle.edge.highlight) || {}),
+        ...((styles.edge && styles.edge.highlight) || {}),
+      },
+    },
+    label: { ...(defaultStyle.label || {}), ...(styles.label || {}) },
+    line: { ...(defaultStyle.line || {}), ...(styles.line || {}) },
+    depths: styles.depths ?? defaultStyle.depths,
+  });
 
   // Canvas and context
   /** @type {HTMLCanvasElement} */
@@ -78,7 +137,6 @@
   let nodeIdToRenderedNodeMap = new SvelteMap();
   let leafNodes = new SvelteSet();
   let negativeDepthNodes = new SvelteMap();
-  // @ts-ignore - Used internally by layout utilities
   let nodeIdToNodeMap = new SvelteMap();
   let depthStyleCache = new SvelteMap();
   let hierarchicalPathCache = new SvelteMap();
@@ -106,7 +164,7 @@
   /** @type {number|null} */
   let animationFrameId = null;
 
-  // Calculate layout and build lookup maps (called on each render like original)
+  // Calculate layout and build lookup maps (called on each render)
   function calculateLayoutAndMaps() {
     if (!nodes?.length) {
       renderedNodes = [];
@@ -134,7 +192,6 @@
     leafNodes = lookupMaps.leafNodes;
     negativeDepthNodes = lookupMaps.negativeDepthNodes;
     nodeIdToNodeMap = lookupMaps.nodeIdToNodeMap;
-    void nodeIdToNodeMap; // Prevent unused variable warning
     depthStyleCache = lookupMaps.depthStyleCache;
     hierarchicalPathCache = lookupMaps.hierarchicalPathCache;
     parentToChildrenNodeMap = lookupMaps.parentToChildrenNodeMap;
@@ -161,7 +218,7 @@
   function draw() {
     if (!canvas || !ctx) return;
 
-    // Clear and set up canvas context (like original)
+    // Clear and set up canvas context
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
 
@@ -210,6 +267,7 @@
       mergedStyle,
       depthStyleCache,
       negativeDepthNodes,
+      mergedOptions.numLabels,
       panX,
       panY,
     );

@@ -1,29 +1,88 @@
 /**
  * Node drawing utilities for CactusTree component
- * Handles rendering of individual nodes with proper styling and performance optimization
  */
 
 import { setCanvasStyles } from './canvasUtils.js';
 
 /**
- * Gets the effective style value for a given property, checking depth-specific overrides first
- * @param {any} depthStyle - Depth-specific style overrides
- * @param {{ [key: string]: any }} mergedStyle - Base merged styles
- * @param {string} property - Style property name
- * @returns {*} The effective style value
+ * Safely reads a nested style property with depth override fallback.
+ * @param {any|null} depthStyle - depth-specific style object (may contain groups like .node, .highlight)
+ * @param {any} mergedStyle - global merged styles object (may contain groups like .node, .highlight)
+ * @param {string} group - top-level group name (e.g., 'node', 'highlight')
+ * @param {string} prop - property name inside the group (e.g., 'fillColor')
+ * @param {*} defaultValue - fallback default if neither depth nor global has the property
+ * @returns {*} The resolved value (depth override > global > default)
  */
-export function getEffectiveStyle(depthStyle, mergedStyle, property) {
-  return depthStyle?.[property] ?? mergedStyle[property];
+export function readStyleProp(
+  depthStyle,
+  mergedStyle,
+  group,
+  prop,
+  defaultValue = undefined,
+) {
+  if (
+    depthStyle &&
+    depthStyle[group] &&
+    depthStyle[group][prop] !== undefined
+  ) {
+    return depthStyle[group][prop];
+  }
+  if (
+    mergedStyle &&
+    mergedStyle[group] &&
+    mergedStyle[group][prop] !== undefined
+  ) {
+    return mergedStyle[group][prop];
+  }
+  return defaultValue;
 }
 
 /**
- * Finds the applicable depth style for a node
- * @param {number} depth - Node depth
- * @param {string} nodeId - Node ID
- * @param {{ depths?: Array<any> }} mergedStyle - Merged styles object
- * @param {Map<any, any>} depthStyleCache - Cache for depth styles
- * @param {Map<any, any>} negativeDepthNodes - Map of negative depth nodes
- * @returns {Object|null} The applicable depth style or null
+ * Safely reads a nested style property for a two-level group (e.g. `node.highlight.fillColor`)
+ * with depth override fallback.
+ * @param {any|null} depthStyle - depth-specific style object (may contain groups like .node)
+ * @param {any} mergedStyle - global merged styles object (may contain groups like .node)
+ * @param {string} outerGroup - top-level group name (e.g., 'node')
+ * @param {string} innerGroup - nested group name (e.g., 'highlight')
+ * @param {string} prop - property name inside the inner group (e.g., 'fillColor')
+ * @param {*} defaultValue - fallback default if neither depth nor global has the property
+ * @returns {*} The resolved value (depth override > global > default)
+ */
+export function readNestedStyleProp(
+  depthStyle,
+  mergedStyle,
+  outerGroup,
+  innerGroup,
+  prop,
+  defaultValue = undefined,
+) {
+  if (
+    depthStyle &&
+    depthStyle[outerGroup] &&
+    depthStyle[outerGroup][innerGroup] &&
+    depthStyle[outerGroup][innerGroup][prop] !== undefined
+  ) {
+    return depthStyle[outerGroup][innerGroup][prop];
+  }
+  if (
+    mergedStyle &&
+    mergedStyle[outerGroup] &&
+    mergedStyle[outerGroup][innerGroup] &&
+    mergedStyle[outerGroup][innerGroup][prop] !== undefined
+  ) {
+    return mergedStyle[outerGroup][innerGroup][prop];
+  }
+  return defaultValue;
+}
+
+/**
+ * Finds the applicable depth style for a node (unchanged behavior, but depthStyle now contains nested groups)
+ * @param {number} depth
+ * @param {string} nodeId
+ * @param {any} mergedStyle
+ * @param {Map<any, any>} depthStyleCache
+ * @param {Map<any, any>} negativeDepthNodes
+ * @returns {any} Depth style object or null
  */
 export function getDepthStyle(
   depth,
@@ -36,7 +95,7 @@ export function getDepthStyle(
   let depthStyle = depthStyleCache.get(depth);
 
   // Handle negative depths if no direct match
-  if (!depthStyle && mergedStyle.depths) {
+  if (!depthStyle && mergedStyle?.depths) {
     for (const ds of mergedStyle.depths) {
       if (ds.depth < 0) {
         const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
@@ -48,18 +107,18 @@ export function getDepthStyle(
     }
   }
 
-  return depthStyle;
+  return depthStyle || null;
 }
 
 /**
- * Calculates the node style properties for rendering
+ * Calculates the node style properties for rendering using nested style groups
  * @param {any} node - The node object
  * @param {number} depth - Node depth
  * @param {string|null} hoveredNodeId - ID of currently hovered node
- * @param {any} mergedStyle - Merged styles object
- * @param {Map<any, any>} depthStyleCache - Cache for depth styles
- * @param {Map<any, any>} negativeDepthNodes - Map of negative depth nodes
- * @returns {any} Style properties for the node
+ * @param {any} mergedStyle - Merged styles object (global groups and depths array)
+ * @param {Map<any, any>} depthStyleCache
+ * @param {Map<any, any>} negativeDepthNodes
+ * @returns {any} Style properties for the node: { fill, fillOpacity, stroke, strokeWidth, strokeOpacity, isHovered }
  */
 export function calculateNodeStyle(
   node,
@@ -77,51 +136,152 @@ export function calculateNodeStyle(
     negativeDepthNodes,
   );
 
-  // Get base style values with depth-specific overrides
-  const currentFill = /** @type {any} */ (depthStyle)?.fill ?? mergedStyle.fill;
-  const currentFillOpacity =
-    /** @type {any} */ (depthStyle)?.fillOpacity ?? mergedStyle.fillOpacity;
-  const currentStroke =
-    /** @type {any} */ (depthStyle)?.stroke ?? mergedStyle.stroke;
-  const currentStrokeWidth =
-    /** @type {any} */ (depthStyle)?.strokeWidth ?? mergedStyle.strokeWidth;
-  const currentStrokeOpacity =
-    /** @type {any} */ (depthStyle)?.strokeOpacity ?? mergedStyle.strokeOpacity;
-  const currentHighlight =
-    /** @type {any} */ (depthStyle)?.highlight ?? mergedStyle.highlight;
+  // Defaults (use previous defaults as reasonable fallbacks)
+  const defaultFill = '#efefef';
+  const defaultFillOpacity = 1;
+  const defaultStroke = '#333333';
+  const defaultStrokeWidth = 1;
+  const defaultStrokeOpacity = 1;
+
+  // Node values (check depth override, then global)
+  const currentFill = readStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'fillColor',
+    defaultFill,
+  );
+  const currentFillOpacity = readStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'fillOpacity',
+    defaultFillOpacity,
+  );
+  const currentStroke = readStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'strokeColor',
+    defaultStroke,
+  );
+  const currentStrokeWidth = readStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'strokeWidth',
+    defaultStrokeWidth,
+  );
+  const currentStrokeOpacity = readStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'strokeOpacity',
+    defaultStrokeOpacity,
+  );
+
+  // Determine whether highlighting is enabled for this node.
+  // The schema does not explicitly include a boolean `enabled` flag, so we preserve a sensible default of true.
+  // If consumers add an `enabled` boolean under node.highlight (global or depth), honor it.
+  const depthHighlight =
+    depthStyle && depthStyle.node && depthStyle.node.highlight;
+  const globalHighlight =
+    mergedStyle && mergedStyle.node && mergedStyle.node.highlight;
+  const highlightEnabled =
+    depthHighlight && depthHighlight.enabled !== undefined
+      ? depthHighlight.enabled
+      : globalHighlight && globalHighlight.enabled !== undefined
+        ? globalHighlight.enabled
+        : true;
 
   // Check if this node is hovered and highlighting is enabled
-  const isHovered = hoveredNodeId === node.id && currentHighlight;
-  const finalFill = isHovered
-    ? getEffectiveStyle(depthStyle, mergedStyle, 'highlightFill')
-    : currentFill;
-  const finalStroke = isHovered
-    ? getEffectiveStyle(depthStyle, mergedStyle, 'highlightStroke')
-    : currentStroke;
+  const isHovered = hoveredNodeId === node.id && !!highlightEnabled;
+
+  // If hovered, use highlight styles if provided; otherwise fall back to node styles
+  // Highlight properties are now nested under `node.highlight`
+  const highlightFill = readNestedStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'highlight',
+    'fillColor',
+    undefined,
+  );
+  const highlightFillOpacity = readNestedStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'highlight',
+    'fillOpacity',
+    undefined,
+  );
+  const highlightStroke = readNestedStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'highlight',
+    'strokeColor',
+    undefined,
+  );
+  const highlightStrokeOpacity = readNestedStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'highlight',
+    'strokeOpacity',
+    undefined,
+  );
+  const highlightStrokeWidth = readNestedStyleProp(
+    depthStyle,
+    mergedStyle,
+    'node',
+    'highlight',
+    'strokeWidth',
+    undefined,
+  );
+
+  const finalFill =
+    isHovered && highlightFill !== undefined ? highlightFill : currentFill;
+  const finalFillOpacity =
+    isHovered && highlightFillOpacity !== undefined
+      ? highlightFillOpacity
+      : currentFillOpacity;
+  const finalStroke =
+    isHovered && highlightStroke !== undefined
+      ? highlightStroke
+      : currentStroke;
+  const finalStrokeOpacity =
+    isHovered && highlightStrokeOpacity !== undefined
+      ? highlightStrokeOpacity
+      : currentStrokeOpacity;
+  const finalStrokeWidth =
+    isHovered && highlightStrokeWidth !== undefined
+      ? highlightStrokeWidth
+      : currentStrokeWidth;
 
   return {
     fill: finalFill,
-    fillOpacity: currentFillOpacity,
+    fillOpacity: finalFillOpacity,
     stroke: finalStroke,
-    strokeWidth: currentStrokeWidth,
-    strokeOpacity: currentStrokeOpacity,
+    strokeWidth: finalStrokeWidth,
+    strokeOpacity: finalStrokeOpacity,
     isHovered,
   };
 }
 
 /**
  * Draws a single node on the canvas
- * @param {CanvasRenderingContext2D} ctx - Canvas context
- * @param {number} x - Node center X coordinate
- * @param {number} y - Node center Y coordinate
- * @param {number} radius - Node radius
- * @param {any} node - The node object
- * @param {number} depth - Node depth
- * @param {string|null} hoveredNodeId - ID of currently hovered node
- * @param {any} mergedStyle - Merged styles object
- * @param {Map<any, any>} depthStyleCache - Cache for depth styles
- * @param {Map<any, any>} negativeDepthNodes - Map of negative depth nodes
- * @returns {boolean} Whether the node was rendered (not filtered out)
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} x
+ * @param {number} y
+ * @param {number} radius
+ * @param {any} node
+ * @param {number} depth
+ * @param {string|null} hoveredNodeId
+ * @param {any} mergedStyle
+ * @param {Map<any, any>} depthStyleCache
+ * @param {Map<any, any>} negativeDepthNodes
+ * @returns {boolean} Whether the node was rendered
  */
 export function drawNode(
   ctx,
@@ -137,60 +297,60 @@ export function drawNode(
 ) {
   if (!ctx) return false;
 
-  // Skip nodes with screen radius less than 1px for performance
-  if (radius < 1) {
-    return false; // Filtered out
-  }
+  // Skip nodes with very small screen radius for performance
+  if (radius < 1) return false;
 
-  const style = calculateNodeStyle(
-    node,
-    depth,
-    hoveredNodeId,
-    mergedStyle,
-    depthStyleCache,
-    negativeDepthNodes,
+  const style = /** @type {any} */ (
+    calculateNodeStyle(
+      node,
+      depth,
+      hoveredNodeId,
+      mergedStyle,
+      depthStyleCache,
+      negativeDepthNodes,
+    )
   );
 
   // Create circle path
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
 
-  // Batch fill operations
+  // Fill if specified and not 'none'
   if (style.fill !== 'none') {
     setCanvasStyles(ctx, {
       fillStyle: style.fill,
-      globalAlpha: style.fillOpacity,
+      globalAlpha: style.fillOpacity ?? 1,
     });
     ctx.fill();
   }
 
-  // Batch stroke operations
-  if (style.stroke !== 'none' && style.strokeWidth > 0) {
+  // Stroke if specified and width > 0
+  if (style.stroke !== 'none' && (style.strokeWidth ?? 0) > 0) {
     setCanvasStyles(ctx, {
       strokeStyle: style.stroke,
       lineWidth: style.strokeWidth,
-      globalAlpha: style.strokeOpacity,
+      globalAlpha: style.strokeOpacity ?? 1,
     });
     ctx.stroke();
   }
 
-  // Reset alpha if it was changed
+  // Reset alpha if changed
   if (ctx.globalAlpha !== 1.0) {
     ctx.globalAlpha = 1.0;
   }
 
-  return true; // Successfully rendered
+  return true;
 }
 
 /**
  * Draws all nodes in the renderedNodes array
- * @param {CanvasRenderingContext2D} ctx - Canvas context
- * @param {Array<any>} renderedNodes - Array of rendered node data
- * @param {string|null} hoveredNodeId - ID of currently hovered node
- * @param {any} mergedStyle - Merged styles object
- * @param {Map<any, any>} depthStyleCache - Cache for depth styles
- * @param {Map<any, any>} negativeDepthNodes - Map of negative depth nodes
- * @returns {{ rendered: number, filtered: number }} Performance stats
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Array<any>} renderedNodes
+ * @param {string|null} hoveredNodeId
+ * @param {any} mergedStyle
+ * @param {Map<any, any>} depthStyleCache
+ * @param {Map<any, any>} negativeDepthNodes
+ * @returns {{ rendered: number, filtered: number }}
  */
 export function drawNodes(
   ctx,
@@ -200,14 +360,14 @@ export function drawNodes(
   depthStyleCache,
   negativeDepthNodes,
 ) {
-  if (!ctx || !renderedNodes.length) {
+  if (!ctx || !renderedNodes || !renderedNodes.length) {
     return { rendered: 0, filtered: 0 };
   }
 
   let renderedCount = 0;
   let filteredCount = 0;
 
-  renderedNodes.forEach(({ x, y, radius, node, depth }) => {
+  for (const { x, y, radius, node, depth } of renderedNodes) {
     const wasRendered = drawNode(
       ctx,
       x,
@@ -221,42 +381,35 @@ export function drawNodes(
       negativeDepthNodes,
     );
 
-    if (wasRendered) {
-      renderedCount++;
-    } else {
-      filteredCount++;
-    }
-  });
+    if (wasRendered) renderedCount++;
+    else filteredCount++;
+  }
 
-  return {
-    rendered: renderedCount,
-    filtered: filteredCount,
-  };
+  return { rendered: renderedCount, filtered: filteredCount };
 }
 
 /**
- * Checks if a point is inside a node (for hover detection)
- * @param {number} mouseX - Mouse X coordinate
- * @param {number} mouseY - Mouse Y coordinate
- * @param {number} nodeX - Node center X coordinate
- * @param {number} nodeY - Node center Y coordinate
- * @param {number} radius - Node radius
- * @returns {boolean} Whether the point is inside the node
+ * Utility: point-in-node test
+ * @param {number} mouseX
+ * @param {number} mouseY
+ * @param {number} nodeX
+ * @param {number} nodeY
+ * @param {number} radius
+ * @returns {boolean}
  */
 export function isPointInNode(mouseX, mouseY, nodeX, nodeY, radius) {
-  // Skip hover detection for nodes with screen radius less than 1px
   if (radius < 1) return false;
-
-  const distance = Math.sqrt((mouseX - nodeX) ** 2 + (mouseY - nodeY) ** 2);
-  return distance <= radius;
+  const dx = mouseX - nodeX;
+  const dy = mouseY - nodeY;
+  return dx * dx + dy * dy <= radius * radius;
 }
 
 /**
- * Finds the hovered node ID based on mouse coordinates
- * @param {number} mouseX - Transformed mouse X coordinate
- * @param {number} mouseY - Transformed mouse Y coordinate
- * @param {Array<any>} renderedNodes - Array of rendered node data
- * @returns {string|null} The ID of the hovered node or null
+ * Find hovered node id (prioritize smallest radius)
+ * @param {number} mouseX
+ * @param {number} mouseY
+ * @param {Array<any>} renderedNodes
+ * @returns {string|null}
  */
 export function findHoveredNode(mouseX, mouseY, renderedNodes) {
   let bestCandidate = null;
@@ -264,9 +417,7 @@ export function findHoveredNode(mouseX, mouseY, renderedNodes) {
 
   for (const nodeData of renderedNodes) {
     const { x, y, radius, node } = nodeData;
-
     if (isPointInNode(mouseX, mouseY, x, y, radius)) {
-      // Prioritize smaller nodes (foreground) over larger nodes (background)
       if (radius < smallestRadius) {
         smallestRadius = radius;
         bestCandidate = node.id;

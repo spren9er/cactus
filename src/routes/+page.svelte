@@ -21,7 +21,7 @@
     sizeGrowthRate: 0.8,
     orientation: 90,
     zoom: 1.0,
-    labelLimit: 30,
+    numLabels: 30,
   };
 
   let showEdgeBundling = true;
@@ -174,15 +174,15 @@
       </div>
 
       <div class="control-group">
-        <label for="labelLimit">
-          Label Limit: {config.labelLimit}
+        <label for="numLabels">
+          Num Labels: {config.numLabels}
           <input
-            id="labelLimit"
+            id="numLabels"
             type="range"
             min="0"
-            max="100"
+            max="60"
             step="5"
-            bind:value={config.labelLimit}
+            bind:value={config.numLabels}
           />
         </label>
       </div>
@@ -205,43 +205,77 @@
         sizeGrowthRate: config.sizeGrowthRate,
         orientation: (config.orientation * Math.PI) / 180,
         zoom: config.zoom,
+        numLabels: config.numLabels,
       }}
       styles={{
-        label: '#333333',
-        labelFontFamily: 'monospace',
-        labelMinFontSize: 9,
-        labelMaxFontSize: 14,
-        labelLimit: config.labelLimit,
-        labelLink: '#aaaaaa',
-        labelLinkWidth: 0.5,
-        labelLinkLength: 5,
-        labelLinkPadding: 0,
-        labelPadding: 1,
-        line: '#aaaaaa',
-        edge: '#e2575a',
-        edgeOpacity: 0.1,
-        highlightStroke: '#e2575a',
-        highlightFill: '#ffbbb7',
-        fill: '#dedede',
-        stroke: '#aaaaaa',
-        strokeWidth: 1,
-        edgeWidth: 1,
+        node: {
+          fillColor: '#dedede',
+          strokeColor: '#aaaaaa',
+          strokeWidth: 1,
+          strokeOpacity: 1,
+          fillOpacity: 1,
+          highlight: {
+            fillColor: '#ffbbb7',
+            strokeColor: '#e2575a',
+          },
+        },
+        label: {
+          textColor: '#333333',
+          fontFamily: 'monospace',
+          minFontSize: 9,
+          maxFontSize: 14,
+          padding: 1,
+          link: {
+            strokeColor: '#aaaaaa',
+            strokeWidth: 0.5,
+            strokeOpacity: 1,
+            padding: 0,
+          },
+        },
+        edge: {
+          strokeColor: '#e2575a',
+          strokeOpacity: 0.1,
+          strokeWidth: 1,
+          highlight: {
+            strokeColor: '#e2575a',
+            strokeOpacity: 0.2,
+          },
+        },
         depths: [
           {
             depth: -1,
-            label: '#333333',
-            fill: '#e2575a',
-            stroke: 'transparent',
-            strokeWidth: 2,
-            highlightFill: '#e2575a',
-            highlightStroke: '#333333',
+            node: {
+              fillColor: '#e2575a',
+              strokeColor: 'transparent',
+              strokeWidth: 2,
+              highlight: {
+                fillColor: '#e2575a',
+                strokeColor: '#333333',
+              },
+            },
+            label: {
+              textColor: '#333333',
+              padding: 1,
+              link: {
+                strokeColor: '#aaaaaa',
+                strokeWidth: 0.5,
+                strokeOpacity: 1,
+                padding: 0,
+              },
+            },
           },
           {
             depth: 0,
-            fill: '#333333',
-            stroke: '#333333',
-            label: '#efefef',
-            highlightFill: '#333333',
+            node: {
+              fillColor: '#333333',
+              strokeColor: '#333333',
+              highlight: {
+                fillColor: '#333333',
+              },
+            },
+            label: {
+              textColor: '#efefef',
+            },
           },
         ],
       }}

@@ -204,16 +204,69 @@ export function drawEdge(
     return false;
   }
 
-  // Get edge style properties
-  const currentEdgeColor = mergedStyle.edge;
-  const currentEdgeWidth = mergedStyle.edgeWidth;
-  const currentEdgeOpacity = calculateEdgeOpacity(
-    hoveredNodeId,
-    parentToChildrenNodeMap,
-    mergedStyle.edgeOpacity,
-  );
+  // Read values strictly from the global `mergedStyle.edge`.
+  const currentEdgeColor =
+    mergedStyle && mergedStyle.edge && mergedStyle.edge.strokeColor
+      ? mergedStyle.edge.strokeColor
+      : 'none';
+  const currentEdgeWidth =
+    mergedStyle && mergedStyle.edge && mergedStyle.edge.strokeWidth
+      ? mergedStyle.edge.strokeWidth
+      : 0;
+  const baseEdgeOpacity =
+    mergedStyle && mergedStyle.edge && mergedStyle.edge.strokeOpacity
+      ? mergedStyle.edge.strokeOpacity
+      : 0.1;
 
-  if (currentEdgeWidth <= 0 || currentEdgeColor === 'none') {
+  // Edge-level highlight when hovering connected nodes (nested under edge.highlight)
+  const edgeHighlight =
+    mergedStyle && mergedStyle.edge && mergedStyle.edge.highlight
+      ? mergedStyle.edge.highlight
+      : null;
+
+  const isEdgeHovered =
+    hoveredNodeId !== null &&
+    (hoveredNodeId === link.source || hoveredNodeId === link.target);
+
+  // If an edge-level highlight is present and the edge is hovered, prefer its values.
+  const highlightColor =
+    isEdgeHovered && edgeHighlight && edgeHighlight.strokeColor !== undefined
+      ? edgeHighlight.strokeColor
+      : undefined;
+  const highlightWidth =
+    isEdgeHovered && edgeHighlight && edgeHighlight.strokeWidth !== undefined
+      ? edgeHighlight.strokeWidth
+      : undefined;
+  const highlightOpacity =
+    isEdgeHovered && edgeHighlight && edgeHighlight.strokeOpacity !== undefined
+      ? edgeHighlight.strokeOpacity
+      : undefined;
+
+  // Determine effective opacity.
+  // If the edge is hovered and a highlight opacity is provided, use it
+  // directly. Otherwise, fall back to the hover-aware calculation which
+  // may boost opacity for leaf hovers.
+  let currentEdgeOpacity;
+  if (isEdgeHovered && highlightOpacity !== undefined) {
+    currentEdgeOpacity = highlightOpacity;
+  } else {
+    currentEdgeOpacity = calculateEdgeOpacity(
+      hoveredNodeId,
+      parentToChildrenNodeMap,
+      baseEdgeOpacity,
+    );
+  }
+
+  // Final color/width consider highlight overrides if present
+  const finalEdgeColor =
+    highlightColor !== undefined ? highlightColor : currentEdgeColor;
+  const finalEdgeWidth =
+    highlightWidth !== undefined ? highlightWidth : currentEdgeWidth;
+
+  // Use final effective values to decide whether to draw the edge.
+  // This ensures that highlight overrides (which may set a color/width even
+  // when the global edge was 'none' or zero-width) are honored.
+  if (finalEdgeWidth <= 0 || finalEdgeColor === 'none') {
     return false;
   }
 
@@ -240,14 +293,14 @@ export function drawEdge(
   }
 
   // Set edge styles - optimize by only setting when different
-  if (ctx.strokeStyle !== currentEdgeColor) {
-    ctx.strokeStyle = currentEdgeColor;
+  if (ctx.strokeStyle !== finalEdgeColor) {
+    ctx.strokeStyle = finalEdgeColor;
   }
   if (ctx.globalAlpha !== currentEdgeOpacity) {
     ctx.globalAlpha = currentEdgeOpacity;
   }
-  if (ctx.lineWidth !== currentEdgeWidth) {
-    ctx.lineWidth = currentEdgeWidth;
+  if (ctx.lineWidth !== finalEdgeWidth) {
+    ctx.lineWidth = finalEdgeWidth;
   }
 
   ctx.beginPath();
@@ -314,8 +367,15 @@ export function drawConnectingLines(
 
     children.forEach((/** @type {any} */ child) => {
       const depthStyle = depthStyleCache.get(depth);
-      const currentLineWidth = depthStyle?.lineWidth ?? mergedStyle.lineWidth;
-      const currentLineColor = depthStyle?.line ?? mergedStyle.line;
+      // Support nested `line` object (strokeColor, strokeOpacity, strokeWidth)
+      const currentLineWidth =
+        depthStyle?.line?.strokeWidth ??
+        mergedStyle?.line?.strokeWidth ??
+        mergedStyle.lineWidth;
+      const currentLineColor =
+        depthStyle?.line?.strokeColor ??
+        mergedStyle?.line?.strokeColor ??
+        mergedStyle.line;
 
       if (currentLineWidth > 0 && currentLineColor !== 'none') {
         setCanvasStyles(ctx, {
