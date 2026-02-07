@@ -55,7 +55,7 @@ npm install cactuz
 #### Props
 
 | Prop       | Type      | Required | Default | Description                        |
-| ---------- | --------- | -------- | ------- | ---------------------------------- |
+| ---------- | --------- |:--------:|:-------:| ---------------------------------- |
 | `width`    | `number`  | yes      | -       | Canvas width in pixels             |
 | `height`   | `number`  | yes      | -       | Canvas height in pixels            |
 | `nodes`    | `Node[]`  | yes      | -       | Array of hierarchical nodes        |
