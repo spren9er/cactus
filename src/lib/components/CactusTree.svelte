@@ -222,7 +222,6 @@
   let nodeIdToRenderedNodeMap = new SvelteMap();
   let leafNodes = new SvelteSet();
   let negativeDepthNodes = new SvelteMap();
-  let nodeIdToNodeMap = new SvelteMap();
   let depthStyleCache = new SvelteMap();
   let hierarchicalPathCache = new SvelteMap();
   let parentToChildrenNodeMap = new SvelteMap();
@@ -276,7 +275,6 @@
     nodeIdToRenderedNodeMap = lookupMaps.nodeIdToRenderedNodeMap;
     leafNodes = lookupMaps.leafNodes;
     negativeDepthNodes = lookupMaps.negativeDepthNodes;
-    nodeIdToNodeMap = lookupMaps.nodeIdToNodeMap;
     depthStyleCache = lookupMaps.depthStyleCache;
     hierarchicalPathCache = lookupMaps.hierarchicalPathCache;
     parentToChildrenNodeMap = lookupMaps.parentToChildrenNodeMap;
