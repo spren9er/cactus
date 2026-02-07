@@ -262,9 +262,6 @@
                 strokeColor: '#333333',
               },
             },
-            label: {
-              textColor: '#333333',
-            },
           },
           {
             depth: 0,
