@@ -649,6 +649,7 @@ export function computeLabelLayout(
       labelPadding: globalLabelPadding,
       linkPadding: globalLinkPadding,
       linkLength: globalLinkLength,
+      allNodes: renderedNodes,
     },
   );
 

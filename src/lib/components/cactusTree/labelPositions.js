@@ -964,9 +964,24 @@ export class LabelPositioner {
     const labels = outsideLabels.map((d) => d.label);
     const anchors = outsideLabels.map((d) => d.anchor);
 
-    // Only pass the nodes that have labels - not all rendered nodes
-    // This prevents coordinate space issues when zooming
-    const nodesWithLabels = this.renderedNodes;
+    // Determine which node set to use for circle-overlap checks.
+    // Prefer an explicit `allNodes` array if provided in `this.options`
+    // so the labeler can avoid overlapping ANY circle on the canvas —
+    // including nodes that are not being labeled (this is important when
+    // hovering reduces the labeled set). Fall back to `this.renderedNodes`
+    // (the nodes that are being labeled) when no full set is supplied.
+    //
+    // Options supported (in priority order):
+    // - this.options.allNodes
+    // - this.options.allRenderedNodes (legacy/alternate)
+    const nodesWithLabels =
+      Array.isArray(this.options && this.options.allNodes) &&
+      this.options.allNodes.length
+        ? this.options.allNodes
+        : Array.isArray(this.options && this.options.allRenderedNodes) &&
+            this.options.allRenderedNodes.length
+          ? this.options.allRenderedNodes
+          : this.renderedNodes;
 
     // Use Monte Carlo algorithm for placing outside labels
     // labelAnchorPadding creates a virtual extended circle for overlap
