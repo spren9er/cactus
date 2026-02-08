@@ -22,6 +22,7 @@
     orientation: 90,
     zoom: 1.0,
     numLabels: 30,
+    bundlingStrength: 0.97,
   };
 
   let showEdgeBundling = true;
@@ -206,6 +207,7 @@
         orientation: (config.orientation * Math.PI) / 180,
         zoom: config.zoom,
         numLabels: config.numLabels,
+        bundlingStrength: config.bundlingStrength,
       }}
       styles={{
         node: {
@@ -225,7 +227,7 @@
           strokeWidth: 1,
           highlight: {
             strokeColor: '#e2575a',
-            strokeOpacity: 0.2,
+            strokeOpacity: 0.25,
           },
         },
         label: {
@@ -282,9 +284,27 @@
   </div>
 
   <div class="edge-bundling-control">
-    <label>
+    <label class="edge-bundling-label">
       <input type="checkbox" bind:checked={showEdgeBundling} />
-      Hierarchical Edge Bundling
+      <span class="edge-bundling-text">Hierarchical Edge Bundling</span>
+
+      <span
+        class="bundling-inline"
+        role="group"
+        aria-label="Bundling strength control"
+      >
+        <input
+          class="bundling-range"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          bind:value={config.bundlingStrength}
+          disabled={!showEdgeBundling}
+          aria-disabled={!showEdgeBundling}
+        />
+        <span class="bundling-value">{config.bundlingStrength.toFixed(2)}</span>
+      </span>
     </label>
   </div>
 
@@ -410,17 +430,48 @@
     font-family: monospace;
   }
 
-  .edge-bundling-control label {
-    font-size: 11px;
+  .edge-bundling-label {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
+    font-size: 11px;
     color: #555;
     cursor: pointer;
   }
 
-  .edge-bundling-control input[type='checkbox'] {
+  .edge-bundling-label input[type='checkbox'] {
     margin: 0;
+  }
+
+  .edge-bundling-text {
+    margin-left: 4px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  .bundling-inline {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 25px;
+  }
+
+  .bundling-range {
+    width: 140px;
+    height: 12px;
+    vertical-align: middle;
+  }
+
+  .bundling-range[disabled] {
+    opacity: 0.45;
+    filter: grayscale(30%);
+    cursor: not-allowed;
+  }
+
+  .bundling-value {
+    min-width: 40px;
+    text-align: right;
+    font-size: 11px;
+    color: #333;
   }
 
   .footer {

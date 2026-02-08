@@ -27,7 +27,8 @@
         sizeGrowthRate?: number,
         orientation?: number,
         zoom?: number,
-        numLabels?: number
+        numLabels?: number,
+        bundlingStrength?: number
       },
       styles?: {
         node?: {
@@ -135,6 +136,7 @@
     orientation: Math.PI / 2,
     zoom: 1.0,
     numLabels: 30,
+    bundlingStrength: 0.97,
   };
 
   const defaultStyle = {
@@ -338,6 +340,7 @@
       mergedStyle,
       hoveredNodeId,
       parentToChildrenNodeMap,
+      Number(mergedOptions?.bundlingStrength ?? 0.97),
     );
     const visibleNodeIds = new SvelteSet(edgeNodeIds);
 

@@ -186,6 +186,7 @@ export function drawEdge(
   mergedStyle,
   hoveredNodeId,
   parentToChildrenNodeMap,
+  bundlingStrength = 0.97,
 ) {
   if (!ctx) return false;
 
@@ -282,6 +283,47 @@ export function drawEdge(
     pathCoords.push({ x: targetNode.x, y: targetNode.y });
   }
 
+  // Bundling strength controls interpolation between a straight line (0)
+  // and the full hierarchical bundle path (1). This value MUST come only from
+  // the options (the `bundlingStrength` parameter passed into drawEdge/drawEdges).
+  // No style-based fallback is used. Default is 0.85. The numeric value used
+  // will be clamped to the [0,1] range in `bundlingStrengthValue` below.
+
+  // Compute final coordinates according to bundling strength.
+  // Strategy:
+  //  - bundlingStrength === 1 -> use hierarchical path points unchanged
+  //  - bundlingStrength === 0 -> use straight-line points sampled at same param positions
+  //  - 0 < bundlingStrength < 1 -> linearly blend each hierarchical point
+  //    with the corresponding straight-line sample (by normalized position along path)
+  let finalPathCoords;
+  if (bundlingStrength <= 0) {
+    // Straight-line sampling with same number of points as pathCoords
+    finalPathCoords = [];
+    const n = pathCoords.length;
+    for (let i = 0; i < n; i++) {
+      const frac = n === 1 ? 0 : i / (n - 1);
+      finalPathCoords.push({
+        x: sourceNode.x * (1 - frac) + targetNode.x * frac,
+        y: sourceNode.y * (1 - frac) + targetNode.y * frac,
+      });
+    }
+  } else if (bundlingStrength >= 1) {
+    finalPathCoords = pathCoords;
+  } else {
+    // Use an explicit loop rather than .map to avoid implicit-any issues
+    finalPathCoords = [];
+    for (let i = 0; i < pathCoords.length; i++) {
+      const pt = pathCoords[i];
+      const frac = pathCoords.length === 1 ? 0 : i / (pathCoords.length - 1);
+      const straightX = sourceNode.x * (1 - frac) + targetNode.x * frac;
+      const straightY = sourceNode.y * (1 - frac) + targetNode.y * frac;
+      finalPathCoords.push({
+        x: straightX * (1 - bundlingStrength) + pt.x * bundlingStrength,
+        y: straightY * (1 - bundlingStrength) + pt.y * bundlingStrength,
+      });
+    }
+  }
+
   // Set edge styles - optimize by only setting when different
   if (ctx.strokeStyle !== finalEdgeColor) {
     ctx.strokeStyle = finalEdgeColor;
@@ -295,25 +337,25 @@ export function drawEdge(
 
   ctx.beginPath();
 
-  if (pathCoords.length === 2) {
+  if (finalPathCoords.length === 2) {
     // Simple direct line
-    ctx.moveTo(pathCoords[0]?.x ?? 0, pathCoords[0]?.y ?? 0);
-    ctx.lineTo(pathCoords[1]?.x ?? 0, pathCoords[1]?.y ?? 0);
-  } else if (pathCoords.length > 2) {
-    // Draw smooth curve through hierarchical path points
-    ctx.moveTo(pathCoords[0]?.x ?? 0, pathCoords[0]?.y ?? 0);
+    ctx.moveTo(finalPathCoords[0]?.x ?? 0, finalPathCoords[0]?.y ?? 0);
+    ctx.lineTo(finalPathCoords[1]?.x ?? 0, finalPathCoords[1]?.y ?? 0);
+  } else if (finalPathCoords.length > 2) {
+    // Draw smooth curve through final path points
+    ctx.moveTo(finalPathCoords[0]?.x ?? 0, finalPathCoords[0]?.y ?? 0);
 
     // Use quadratic curves between consecutive points
-    for (let i = 1; i < pathCoords.length; i++) {
-      const currentPoint = pathCoords[i];
+    for (let i = 1; i < finalPathCoords.length; i++) {
+      const currentPoint = finalPathCoords[i];
       if (!currentPoint) continue;
 
-      if (i === pathCoords.length - 1) {
+      if (i === finalPathCoords.length - 1) {
         // Last segment - line to target
         ctx.lineTo(currentPoint.x, currentPoint.y);
       } else {
         // Create smooth curve through intermediate points
-        const nextPoint = pathCoords[i + 1];
+        const nextPoint = finalPathCoords[i + 1];
         if (nextPoint) {
           const cpx = (currentPoint.x + nextPoint.x) / 2;
           const cpy = (currentPoint.y + nextPoint.y) / 2;
@@ -443,6 +485,7 @@ export function drawEdges(
   mergedStyle,
   hoveredNodeId,
   parentToChildrenNodeMap,
+  bundlingStrength = 0.97,
 ) {
   if (!ctx || !links?.length) return [];
 
@@ -463,6 +506,7 @@ export function drawEdges(
         mergedStyle,
         hoveredNodeId,
         parentToChildrenNodeMap,
+        bundlingStrength,
       );
 
       if (wasDrawn) {
