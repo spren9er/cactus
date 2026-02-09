@@ -93,7 +93,13 @@ interface Options {
   orientation?: number;      // Root orientation in radians (default: π/2)
   zoom?: number;             // Layout zoom factor (default: 1.0)
   numLabels?: number;        // Number of labels (default: 30)
-  bundlingStrength?: number; // Edge bundling strength (default: 0.97)
+  edgeOptions?: EdgeOptions; // Edge-specific interactive settings (bundling, hover behavior)
+}
+
+interface EdgeOptions {
+  bundlingStrength?: number; // Edge bundling strength (0..1, default: 0.97)
+  strategy?: 'hide' | 'mute'; // Hover behavior when over a leaf: 'hide' hides unrelated edges, 'mute' shows them at reduced opacity (default: 'hide')
+  muteOpacity?: number;      // When strategy is 'mute', multiplier applied to unrelated edges (0..1, default: 0.25)
 }
 ```
 

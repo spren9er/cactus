@@ -12,6 +12,65 @@
 import { setCanvasStyles } from './canvasUtils.js';
 
 /**
+ * Utility: embed an alpha into a color string when possible.
+ * - If color is hex (#rgb or #rrggbb) -> convert to rgba(...)
+ * - If color is 'rgb(...)' -> convert to rgba(...)
+ * - If color is already 'rgba(...)' -> replace alpha component
+ * - Otherwise return the original color (alpha ignored)
+ *
+ * This lets us avoid touching `ctx.globalAlpha` while still applying per-stroke opacity.
+ *
+ * @param {string} color
+ * @param {number} alpha
+ * @returns {string}
+ */
+function colorWithAlpha(color, alpha) {
+  if (color == null) return color;
+  const c = String(color).trim();
+  if (!c) return c;
+  if (alpha === undefined || alpha === null) return c;
+  // If alpha is 1, no change needed
+  if (alpha === 1) return c;
+  // rgba(...) -> replace alpha
+  if (c.startsWith('rgba(')) {
+    const inner = c.slice(5, -1);
+    const parts = inner.split(',').map((s) => s.trim());
+    if (parts.length >= 3) {
+      return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+    }
+    return c;
+  }
+  // rgb(...) -> convert
+  if (c.startsWith('rgb(')) {
+    const inner = c.slice(4, -1);
+    const parts = inner.split(',').map((s) => s.trim());
+    if (parts.length >= 3) {
+      return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+    }
+    return c;
+  }
+  // hex -> convert (#rgb or #rrggbb)
+  if (c[0] === '#') {
+    let hex = c.slice(1);
+    if (hex.length === 3) {
+      hex = hex
+        .split('')
+        .map((h) => h + h)
+        .join('');
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return c;
+  }
+  // Fallback: unknown color format -> return original (alpha ignored)
+  return c;
+}
+
+/**
  * Build hierarchical path (array of ancestor nodes) between two rendered nodes.
  * Uses a simple caching pattern keyed by sourceId-targetId.
  *
@@ -218,16 +277,38 @@ export function pathToCoordinates(
  * @param {any} hoveredNodeId
  * @returns {boolean} true if edge should be filtered (i.e., hidden)
  */
-export function shouldFilterEdge(link, hoveredNodeId) {
+export function shouldFilterEdge(
+  link,
+  hoveredNodeId,
+  nodeIdToRenderedNodeMap = null,
+) {
   if (hoveredNodeId === null) return false;
 
-  // When any node is hovered, show only edges that are incident on the hovered node.
-  // This ensures edges not associated with the hovered node are hidden regardless of
-  // whether the hovered node is a leaf or internal node.
+  // Only apply the "show only incident edges" filter when hovering a leaf node.
+  // If we have access to the rendered-node map we can detect whether the hovered
+  // node is a leaf (no children). When hovering a non-leaf node we keep all edges.
   try {
+    if (nodeIdToRenderedNodeMap) {
+      // Cast the incoming map to `any` for safer property access in environments
+      // that perform static-type checks which may otherwise infer `never`.
+      const map = /** @type {any} */ (nodeIdToRenderedNodeMap);
+      const hoveredNodeData = map.get(hoveredNodeId);
+      const hasChildren =
+        hoveredNodeData &&
+        hoveredNodeData.node &&
+        Array.isArray(hoveredNodeData.node.children) &&
+        hoveredNodeData.node.children.length > 0;
+
+      // Hovering a non-leaf: do not hide any edges.
+      if (hasChildren) return false;
+      // Otherwise, hovered node is a leaf and we fall through to filter edges
+      // to only those incident on the hovered leaf.
+    }
+
+    // When hovering a leaf node, show only edges that are incident on the hovered node.
     return link.source !== hoveredNodeId && link.target !== hoveredNodeId;
   } catch {
-    // Defensive fallback: if link shape is unexpected, do not filter.
+    // Defensive fallback: if link shape is unexpected or map lookup fails, do not filter.
     return false;
   }
 }
@@ -240,10 +321,10 @@ export function shouldFilterEdge(link, hoveredNodeId) {
  * @returns {number}
  */
 export function calculateEdgeOpacity(hoveredNodeId, baseOpacity) {
-  if (hoveredNodeId === null) return baseOpacity;
-  // When any node is hovered, emphasize visible edges by using full opacity.
-  // We no longer rely on the parent->children map to decide leaf status here.
-  return 1.0;
+  // Always respect the configured base opacity for edges. Hovering should not
+  // forcibly set full opacity because that can lead to double-application or
+  // unexpected visual results when canvas alpha is composed elsewhere.
+  return baseOpacity;
 }
 
 /**
@@ -255,14 +336,21 @@ export function calculateEdgeOpacity(hoveredNodeId, baseOpacity) {
  *
  * @param {CanvasRenderingContext2D} ctx
  * @param {any} link - { source: string, target: string }
- * @param {any} sourceNode - rendered source node (has x,y,radius,node)
+ * @param {any} sourceNode - rendered source node (has x,y,radius,node,depth)
  * @param {any} targetNode - rendered target node
  * @param {any} hierarchicalPathCache
  * @param {any} nodeIdToRenderedNodeMap
+ * @param {Map<number, any>|null} depthStyleCache - optional map of depth -> style overrides (may be null)
  * @param {any} mergedStyle
  * @param {any} hoveredNodeId
  * @param {any} highlightedNodeIds
  * @param {any} bundlingStrength
+ * @param {boolean} [skipFiltered=false] - if true, `drawEdge` will return false when the edge
+ *   should be filtered according to `shouldFilterEdge`. Callers can set this to `false` if they
+ *   want `drawEdge` to draw muted/bundled representations even when the edge would otherwise be filtered.
+ * @param {Map<number, Set<string>>|null} negativeDepthNodes - optional mapping of negative depth -> Set(nodeId)
+ *   This allows depth entries with negative `depth` values (e.g. -1 for leaves) to be resolved
+ *   against precomputed node groups so that negative-depth styles correctly take precedence.
  * @returns {boolean} whether the edge was drawn
  */
 export function drawEdge(
@@ -272,10 +360,21 @@ export function drawEdge(
   targetNode,
   hierarchicalPathCache,
   nodeIdToRenderedNodeMap,
+  depthStyleCache,
   mergedStyle,
   hoveredNodeId,
   highlightedNodeIds = null,
   bundlingStrength = 0.97,
+  // When an edge is "muted" (due to hover strategy === 'mute'), callers can
+  // pass `muted = true` and a `muteOpacity` value to reduce the final stroke
+  // opacity for that particular edge group. Defaults preserve previous behavior.
+  muted = false,
+  muteOpacity = 1,
+  // If true, `drawEdge` will consult `shouldFilterEdge` and return early when the
+  // edge should be filtered. Callers that intend to draw muted or fallback-bundled
+  // representations should pass `skipFiltered = false`.
+  skipFiltered = false,
+  negativeDepthNodes = null,
 ) {
   // Normalize highlightedNodeIds into a Set (highlightedSet) for consistent `.has` checks
   let highlightedSet = null;
@@ -297,19 +396,131 @@ export function drawEdge(
 
   if (!ctx) return false;
 
-  // Respect hover-based filtering
-  if (shouldFilterEdge(l, hoveredNodeId)) return false;
+  // If the caller explicitly requested skipping filtered edges, perform that check here
+  // and return early when the edge should be filtered. Callers that want to draw a muted
+  // or fallback-bundled representation should pass `skipFiltered = false`.
+  if (
+    skipFiltered &&
+    shouldFilterEdge(l, hoveredNodeId, nodeIdToRenderedNodeMap)
+  )
+    return false;
 
-  // Read base edge styles
-  const baseEdge = mergedStyle?.edge ?? {};
-  const currentEdgeColor = baseEdge.strokeColor ?? 'none';
+  // Proceed with style resolution and drawing below.
+
+  // Read base edge styles (use sensible defaults so hover preserves configured appearance)
+  // Merge depth-specific edge overrides with global edge styles so missing fields fall back to global.
+  // Resolve depth-specific style:
+  // 1) Prefer cached non-negative depth styles (fast path).
+  // 2) Fall back to explicit `mergedStyle.depths` matching:
+  //    - exact positive depth match
+  //    - negative-depth mapping (map -1 => deepest leaves, -2 => parents of leaves, etc.)
+  let depthStyle = null;
+  if (depthStyleCache) {
+    depthStyle =
+      depthStyleCache.get(sourceNode?.depth) ||
+      depthStyleCache.get(targetNode?.depth) ||
+      null;
+  }
+
+  if (!depthStyle && mergedStyle?.depths) {
+    // Resolve depth-style with the following precedence:
+    // 1) exact positive-depth match
+    // 2) negative-depth sets via `negativeDepthNodes` (preferred if provided)
+    // 3) fallback mapping from negative depth to absolute depth using computed maxDepth
+    for (const ds of mergedStyle.depths) {
+      // Exact positive-depth match
+      if (ds.depth === sourceNode?.depth || ds.depth === targetNode?.depth) {
+        depthStyle = ds;
+        break;
+      }
+
+      // If this is a negative-depth entry, try the negativeDepthNodes mapping first.
+      if (ds.depth < 0) {
+        if (negativeDepthNodes) {
+          // If caller provided a negativeDepthNodes map (preferred), consult it.
+          const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
+          if (
+            nodesAtThisNegativeDepth &&
+            (nodesAtThisNegativeDepth.has(sourceNode?.id) ||
+              nodesAtThisNegativeDepth.has(targetNode?.id))
+          ) {
+            depthStyle = ds;
+            break;
+          }
+        }
+      }
+    }
+
+    // If we still haven't found a matching depthStyle but there are negative-depth
+    // entries and no negativeDepthNodes map was used, fall back to computing
+    // the maximum depth and mapping negative indices to absolute depths.
+    if (!depthStyle) {
+      let hasNegative = false;
+      for (const ds of mergedStyle.depths) {
+        if (ds.depth < 0) {
+          hasNegative = true;
+          break;
+        }
+      }
+
+      if (hasNegative) {
+        // Compute maximum depth available in the layout to support negative-depth mapping.
+        // Negative depth `d` maps to targetDepth = maxDepth + d + 1
+        // e.g. d = -1 => targetDepth = maxDepth (leaves)
+        let maxDepth = -Infinity;
+        try {
+          if (
+            nodeIdToRenderedNodeMap &&
+            typeof nodeIdToRenderedNodeMap.values === 'function'
+          ) {
+            for (const val of nodeIdToRenderedNodeMap.values()) {
+              if (val && typeof val.depth === 'number') {
+                maxDepth = Math.max(maxDepth, val.depth);
+              }
+            }
+          } else {
+            // Fallback to endpoint depths if the map isn't iterable for some reason
+            maxDepth = Math.max(
+              sourceNode?.depth ?? -Infinity,
+              targetNode?.depth ?? -Infinity,
+            );
+          }
+        } catch {
+          maxDepth = Math.max(
+            sourceNode?.depth ?? -Infinity,
+            targetNode?.depth ?? -Infinity,
+          );
+        }
+
+        for (const ds of mergedStyle.depths) {
+          if (ds.depth < 0 && isFinite(maxDepth)) {
+            const targetDepth = maxDepth + ds.depth + 1;
+            if (
+              sourceNode?.depth === targetDepth ||
+              targetNode?.depth === targetDepth
+            ) {
+              depthStyle = ds;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const globalEdge = mergedStyle?.edge ?? {};
+  const depthEdge = depthStyle?.edge ?? {};
+  const baseEdge = { ...globalEdge, ...depthEdge };
+  const currentEdgeColor = baseEdge.strokeColor ?? '#333333';
   const currentEdgeWidth =
-    typeof baseEdge.strokeWidth === 'number' ? baseEdge.strokeWidth : 0;
+    typeof baseEdge.strokeWidth === 'number' ? baseEdge.strokeWidth : 1;
   const baseEdgeOpacity =
     typeof baseEdge.strokeOpacity === 'number' ? baseEdge.strokeOpacity : 0.1;
 
-  // Edge highlight (top-level mergedStyle.highlight.edge)
-  const edgeHighlight = mergedStyle?.highlight?.edge ?? null;
+  // Edge highlight: merge depth-specific highlight.edge with global highlight.edge
+  const globalEdgeHighlight = mergedStyle?.highlight?.edge ?? {};
+  const depthEdgeHighlight = depthStyle?.highlight?.edge ?? {};
+  const edgeHighlight = { ...globalEdgeHighlight, ...depthEdgeHighlight };
 
   const isEdgeHovered =
     hoveredNodeId !== null &&
@@ -348,10 +559,17 @@ export function drawEdge(
       : undefined;
 
   // Effective opacity: if hovered and highlight opacity specified, use it; else compute hover-aware opacity
-  const currentEdgeOpacity =
+  let currentEdgeOpacity =
     isEdgeHovered && highlightOpacity !== undefined
       ? highlightOpacity
       : calculateEdgeOpacity(hoveredNodeId, baseEdgeOpacity);
+
+  // If this edge is part of the "muted" group (strategy === 'mute'), apply
+  // the group-level mute opacity multiplier on top of the computed opacity.
+  if (muted) {
+    const m = typeof muteOpacity === 'number' ? muteOpacity : 1;
+    currentEdgeOpacity = currentEdgeOpacity * m;
+  }
 
   const finalEdgeColor =
     highlightColor !== undefined ? highlightColor : currentEdgeColor;
@@ -403,11 +621,18 @@ export function drawEdge(
     }
   }
 
-  // Draw the stroke
+  // Draw the stroke. Compute a stroke color with embedded alpha so we do not touch `ctx.globalAlpha`.
+  // Preserve strokeStyle/lineWidth around the stroke.
+  const prevStroke = ctx.strokeStyle;
+  const prevWidth = ctx.lineWidth;
+
+  const strokeStyleWithAlpha = colorWithAlpha(
+    finalEdgeColor,
+    currentEdgeOpacity,
+  );
   setCanvasStyles(ctx, {
-    strokeStyle: finalEdgeColor,
+    strokeStyle: strokeStyleWithAlpha,
     lineWidth: finalEdgeWidth,
-    globalAlpha: currentEdgeOpacity,
   });
 
   ctx.beginPath();
@@ -433,9 +658,9 @@ export function drawEdge(
   }
   ctx.stroke();
 
-  // Reset alpha if changed via setCanvasStyles (up to implementation of setCanvasStyles)
-  // Reset alpha if changed
-  if (ctx.globalAlpha !== 1.0) ctx.globalAlpha = 1.0;
+  // Restore canvas style values we changed (preserve outer drawing state)
+  if (ctx.lineWidth !== prevWidth) ctx.lineWidth = prevWidth;
+  if (ctx.strokeStyle !== prevStroke) ctx.strokeStyle = prevStroke;
 
   // Halos disabled: do not draw any halo visuals for highlighted nodes.
   return true;
@@ -506,17 +731,19 @@ export function drawConnectingLines(
         1;
 
       if (lineWidth > 0 && lineColor !== 'none') {
-        const prevAlpha = ctx.globalAlpha;
+        const prevStroke = ctx.strokeStyle;
+        const prevWidthLocal = ctx.lineWidth;
+        const strokeStyleWithAlpha = colorWithAlpha(lineColor, lineOpacity);
         setCanvasStyles(ctx, {
-          strokeStyle: lineColor,
+          strokeStyle: strokeStyleWithAlpha,
           lineWidth,
-          globalAlpha: lineOpacity,
         });
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(child.x, child.y);
         ctx.stroke();
-        if (ctx.globalAlpha !== prevAlpha) ctx.globalAlpha = prevAlpha;
+        if (ctx.lineWidth !== prevWidthLocal) ctx.lineWidth = prevWidthLocal;
+        if (ctx.strokeStyle !== prevStroke) ctx.strokeStyle = prevStroke;
       }
     }
   }
@@ -544,7 +771,11 @@ export function computeVisibleEdgeNodeIds(
     const li = /** @type {any} */ (link);
     const s = nodeIdToRenderedNodeMap.get(li.source);
     const t = nodeIdToRenderedNodeMap.get(li.target);
-    if (s && t && !shouldFilterEdge(li, hoveredNodeId)) {
+    if (
+      s &&
+      t &&
+      !shouldFilterEdge(li, hoveredNodeId, nodeIdToRenderedNodeMap)
+    ) {
       visibleSet.add(li.source);
       visibleSet.add(li.target);
     }
@@ -560,7 +791,7 @@ export function computeVisibleEdgeNodeIds(
           (link.source === hoveredNodeId || link.target === hoveredNodeId) &&
           nodeIdToRenderedNodeMap.get(link.source) &&
           nodeIdToRenderedNodeMap.get(link.target) &&
-          !shouldFilterEdge(link, hoveredNodeId)
+          !shouldFilterEdge(link, hoveredNodeId, nodeIdToRenderedNodeMap)
         ) {
           visibleSet.add(link.source);
           visibleSet.add(link.target);
@@ -587,6 +818,9 @@ export function computeVisibleEdgeNodeIds(
  * @param {any} hoveredNodeId
  * @param {any} highlightedNodeIds
  * @param {any} bundlingStrength
+ * @param {{bundlingStrength?:number,strategy?:string,muteOpacity?:number}|null} edgeOptions - optional edge-related interactive settings (may be null)
+ * @param {Map<number, any>|null} depthStyleCache - optional depth->style cache to resolve depth-specific edge styles
+ * @param {Map<number, Set<string>>|null} negativeDepthNodes - optional mapping of negative depth -> Set(nodeId) used to resolve negative-depth style entries (e.g. -1 => leaves)
  * @returns {string[]}
  */
 export function drawEdges(
@@ -598,6 +832,9 @@ export function drawEdges(
   hoveredNodeId,
   highlightedNodeIds = null,
   bundlingStrength = 0.97,
+  edgeOptions = null,
+  depthStyleCache = null,
+  negativeDepthNodes = null,
 ) {
   if (!ctx || !links || links.length === 0) return [];
 
@@ -618,118 +855,171 @@ export function drawEdges(
 
   const visibleSet = new Set();
 
+  // Prefer an explicit `edgeOptions` parameter when provided; otherwise fall
+  // back to any `mergedStyle.edgeOptions`. Use `edgeOptionsLocal` to avoid
+  // shadowing the function parameter or declaring duplicate identifiers.
+  const edgeOptionsLocal = edgeOptions ?? mergedStyle?.edgeOptions ?? {};
+  const effectiveBundlingStrength =
+    bundlingStrength ?? edgeOptionsLocal?.bundlingStrength ?? 0.97;
+  const strategy = edgeOptionsLocal.strategy ?? 'hide';
+  const muteOpacity =
+    typeof edgeOptionsLocal.muteOpacity === 'number'
+      ? edgeOptionsLocal.muteOpacity
+      : 0.25;
+
+  // Partition edges into background (non-highlighted) and highlighted sets so we can
+  // render them in phases. This ensures non-highlighted edges (including muted ones)
+  // are drawn first and highlighted edges are drawn on top.
+  const backgroundEdges = [];
+  const highlightedEdges = [];
+
   for (const link of links) {
     const li = /** @type {any} */ (link);
-    // Skip edges filtered by the hover policy early so we never attempt fallback
-    // drawing (which can produce straight-line fallbacks for non-associated edges).
-    if (shouldFilterEdge(li, hoveredNodeId)) continue;
+
     const sNode = nodeIdToRenderedNodeMap.get(li.source);
     const tNode = nodeIdToRenderedNodeMap.get(li.target);
     if (!sNode || !tNode) continue;
 
-    const drawn = drawEdge(
-      ctx,
+    // Determine whether this link would be filtered by the "show only incident edges" policy.
+    const isFiltered = shouldFilterEdge(
       li,
-      sNode,
-      tNode,
-      hierarchicalPathCache,
-      nodeIdToRenderedNodeMap,
-      mergedStyle,
       hoveredNodeId,
-      highlightedSet,
-      bundlingStrength,
+      nodeIdToRenderedNodeMap,
     );
 
-    if (drawn) {
-      visibleSet.add(li.source);
-      visibleSet.add(li.target);
-      continue;
-    }
-
-    // Fallback: if not drawn but should be visible because of hover/highlight, prefer drawing
-    // using the hierarchical bundling path (so hover/highlighted edges remain bundled).
-    // If that still doesn't draw (e.g. style says 'none' / width <= 0), fall back to a simple straight line.
-    const shouldFallback =
+    // Is this edge considered highlighted due to direct hover or neighbor highlights?
+    const isHighlighted =
       (hoveredNodeId !== null &&
         (li.source === hoveredNodeId || li.target === hoveredNodeId)) ||
       (highlightedSet &&
         (highlightedSet.has(li.source) || highlightedSet.has(li.target)));
 
-    if (shouldFallback) {
-      const edgeHighlight = mergedStyle?.highlight?.edge ?? {};
-      const baseEdgeStyle = mergedStyle?.edge ?? {};
+    // If strategy === 'hide' and the edge is filtered and not highlighted, skip it.
+    if (strategy === 'hide' && isFiltered && !isHighlighted) continue;
 
-      // Prepare a temporary merged-style that ensures drawEdge will see highlight overrides
-      // so that drawEdge can render a bundled path with the highlighted appearance.
-      const fallbackMerged = {
-        ...(mergedStyle || {}),
-        // Ensure `highlight.edge` contains the highlight overrides
-        highlight: {
-          ...(mergedStyle?.highlight || {}),
-          edge: {
-            ...(baseEdgeStyle || {}),
-            ...(edgeHighlight || {}),
-          },
-        },
-        // Also ensure top-level edge is set so fallbackMerged.edge is consistent
+    if (isHighlighted) {
+      highlightedEdges.push({ li, sNode, tNode, isFiltered });
+    } else {
+      backgroundEdges.push({ li, sNode, tNode, isFiltered });
+    }
+  }
+
+  // Phase 1: draw background edges (non-highlighted). For 'mute' strategy, filtered
+  // edges are drawn here with reduced opacity (muted). For 'hide', filtered edges
+  // were already skipped above.
+  for (const e of backgroundEdges) {
+    const { li, sNode, tNode, isFiltered } = e;
+    const muted = strategy === 'mute' && isFiltered;
+    // When muted, we must allow drawEdge to draw even if it would normally be filtered.
+    // When not muted, allow drawEdge to skip filtered edges defensively.
+    const skipFiltered = !muted;
+
+    try {
+      const drawn = drawEdge(
+        ctx,
+        li,
+        sNode,
+        tNode,
+        hierarchicalPathCache,
+        nodeIdToRenderedNodeMap,
+        depthStyleCache,
+        mergedStyle,
+        hoveredNodeId,
+        highlightedSet,
+        effectiveBundlingStrength,
+        muted,
+        muteOpacity,
+        skipFiltered,
+        negativeDepthNodes,
+      );
+
+      if (drawn) {
+        visibleSet.add(li.source);
+        visibleSet.add(li.target);
+      }
+    } catch {
+      // Ignore single-edge drawing errors and continue; highlight phase below will still run.
+    }
+  }
+
+  // Phase 2: draw highlighted edges on top. Prefer bundled/hierarchical rendering
+  // using a merged style that favors highlight overrides. If that fails, fall back
+  // to a straight line using highlight/base colors as before.
+  for (const e of highlightedEdges) {
+    const { li, sNode, tNode } = e;
+
+    const edgeHighlight = mergedStyle?.highlight?.edge ?? {};
+    const baseEdgeStyle = mergedStyle?.edge ?? {};
+
+    const fallbackMerged = {
+      ...(mergedStyle || {}),
+      highlight: {
+        ...(mergedStyle?.highlight || {}),
         edge: {
           ...(baseEdgeStyle || {}),
           ...(edgeHighlight || {}),
         },
-      };
+      },
+      edge: {
+        ...(baseEdgeStyle || {}),
+        ...(edgeHighlight || {}),
+      },
+    };
 
-      // Try to draw using hierarchical bundling (preferred)
-      try {
-        const drawnByBundling = drawEdge(
-          ctx,
-          li,
-          sNode,
-          tNode,
-          hierarchicalPathCache,
-          nodeIdToRenderedNodeMap,
-          fallbackMerged,
-          hoveredNodeId,
-          highlightedSet,
-          bundlingStrength,
-        );
-        if (drawnByBundling) {
-          visibleSet.add(li.source);
-          visibleSet.add(li.target);
-          continue;
-        }
-      } catch {
-        // If drawEdge threw, fall back to simple straight line below
+    // Try to draw highlighted edge with bundling (do NOT skip filtered for highlights).
+    try {
+      const drawnByBundling = drawEdge(
+        ctx,
+        li,
+        sNode,
+        tNode,
+        hierarchicalPathCache,
+        nodeIdToRenderedNodeMap,
+        depthStyleCache,
+        fallbackMerged,
+        hoveredNodeId,
+        highlightedSet,
+        effectiveBundlingStrength,
+        false,
+        1,
+        false,
+        negativeDepthNodes,
+      );
+      if (drawnByBundling) {
+        visibleSet.add(li.source);
+        visibleSet.add(li.target);
+        continue;
       }
-
-      // Last-resort fallback: straight line using highlight/base styles (unchanged appearance)
-      const color =
-        edgeHighlight.strokeColor ?? baseEdgeStyle.strokeColor ?? '#ff6b6b';
-      const opacity =
-        edgeHighlight.strokeOpacity ?? baseEdgeStyle.strokeOpacity ?? 1;
-      const width = edgeHighlight.strokeWidth ?? baseEdgeStyle.strokeWidth ?? 1;
-
-      const prevStroke = ctx.strokeStyle;
-      const prevAlpha = ctx.globalAlpha;
-      const prevWidth = ctx.lineWidth;
-
-      setCanvasStyles(ctx, {
-        strokeStyle: color,
-        globalAlpha: opacity,
-        lineWidth: width,
-      });
-      ctx.beginPath();
-      ctx.moveTo(sNode.x, sNode.y);
-      ctx.lineTo(tNode.x, tNode.y);
-      ctx.stroke();
-
-      // No halo drawing for highlighted endpoints. Restore canvas state and continue.
-      if (ctx.globalAlpha !== prevAlpha) ctx.globalAlpha = prevAlpha;
-      if (ctx.lineWidth !== prevWidth) ctx.lineWidth = prevWidth;
-      if (ctx.strokeStyle !== prevStroke) ctx.strokeStyle = prevStroke;
-
-      visibleSet.add(li.source);
-      visibleSet.add(li.target);
+    } catch {
+      // If bundling draw fails, fall through to straight-line fallback.
     }
+
+    // Last-resort straight-line fallback for highlighted edges
+    const color =
+      edgeHighlight.strokeColor ?? baseEdgeStyle.strokeColor ?? '#ff6b6b';
+    const opacity =
+      edgeHighlight.strokeOpacity ?? baseEdgeStyle.strokeOpacity ?? 1;
+    const width = edgeHighlight.strokeWidth ?? baseEdgeStyle.strokeWidth ?? 1;
+
+    const prevStroke = ctx.strokeStyle;
+    const prevWidth = ctx.lineWidth;
+    const strokeStyleWithAlpha = colorWithAlpha(color, opacity);
+
+    setCanvasStyles(ctx, {
+      strokeStyle: strokeStyleWithAlpha,
+      lineWidth: width,
+    });
+    ctx.beginPath();
+    ctx.moveTo(sNode.x, sNode.y);
+    ctx.lineTo(tNode.x, tNode.y);
+    ctx.stroke();
+
+    // Restore canvas state
+    if (ctx.lineWidth !== prevWidth) ctx.lineWidth = prevWidth;
+    if (ctx.strokeStyle !== prevStroke) ctx.strokeStyle = prevStroke;
+
+    visibleSet.add(li.source);
+    visibleSet.add(li.target);
   }
 
   return Array.from(visibleSet);

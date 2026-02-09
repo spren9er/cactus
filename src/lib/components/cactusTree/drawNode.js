@@ -204,6 +204,20 @@ export function calculateNodeStyle(
    * @returns {*}
    */
   function readNodeHighlightProp(prop, defaultValue) {
+    // Accept both legacy (`depthStyle.node.highlight`) and newer (`depthStyle.highlight.node`)
+    // placements for depth-specific highlight overrides. Precedence:
+    // 1) depthStyle.highlight.node
+    // 2) depthStyle.node.highlight (legacy)
+    // 3) mergedStyle.highlight.node
+    // 4) mergedStyle.node.highlight (legacy)
+    if (
+      depthStyle &&
+      depthStyle.highlight &&
+      depthStyle.highlight.node &&
+      depthStyle.highlight.node[prop] !== undefined
+    ) {
+      return depthStyle.highlight.node[prop];
+    }
     if (
       depthStyle &&
       depthStyle.node &&

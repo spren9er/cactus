@@ -139,8 +139,14 @@ export function getLabelStyle(
   const textColor =
     depthInner?.textColor ??
     depthOuter?.textColor ??
+    // accept shorthand strokeColor on inner/outer as a fallback for text color
+    depthInner?.strokeColor ??
+    depthOuter?.strokeColor ??
     globalInner?.textColor ??
     globalOuter?.textColor ??
+    // accept global-level shorthand strokeColor as a final fallback before label-level textColor
+    globalInner?.strokeColor ??
+    globalOuter?.strokeColor ??
     globalLabel?.textColor ??
     '#333333';
   const textOpacity =
@@ -194,9 +200,20 @@ export function getLabelStyle(
   const linkFromDepth = depthOuter?.link ?? labelFromDepth?.link ?? null;
   const globalLink = globalOuter?.link ?? globalLabel?.link ?? {};
 
+  // Support shorthand: allow `inner.strokeColor` or `outer.strokeColor` to act as
+  // a shorthand for the link stroke color when `inner.link` / `outer.link` are not provided.
+  const depthStrokeShorthand =
+    depthInner?.strokeColor ?? depthOuter?.strokeColor ?? null;
+  const globalStrokeShorthand =
+    globalInner?.strokeColor ?? globalOuter?.strokeColor ?? null;
+
   const link = {
     strokeColor:
-      linkFromDepth?.strokeColor ?? globalLink?.strokeColor ?? '#333333',
+      linkFromDepth?.strokeColor ??
+      depthStrokeShorthand ??
+      globalLink?.strokeColor ??
+      globalStrokeShorthand ??
+      '#333333',
     strokeOpacity:
       linkFromDepth?.strokeOpacity ?? globalLink?.strokeOpacity ?? 1.0,
     strokeWidth: linkFromDepth?.strokeWidth ?? globalLink?.strokeWidth ?? 0.5,
@@ -205,24 +222,39 @@ export function getLabelStyle(
   };
 
   // Highlight resolution:
-  // - Depth-specific highlights live under depth.label.inner/outer.highlight and are preferred.
-  // - Global highlights are read only from top-level `mergedStyle.highlight.label`.
-  // Legacy nested `label.highlight` under global label or other legacy locations are no longer supported.
-  const highlightFromDepth =
-    depthInner?.highlight ?? depthOuter?.highlight ?? null;
-  const globalHighlight = mergedStyle?.highlight?.label ?? {};
-  const highlight = {
-    textColor:
-      highlightFromDepth?.textColor ?? globalHighlight?.textColor ?? undefined,
-    textOpacity:
-      highlightFromDepth?.textOpacity ??
-      globalHighlight?.textOpacity ??
-      undefined,
-    fontWeight:
-      highlightFromDepth?.fontWeight ??
-      globalHighlight?.fontWeight ??
-      undefined,
-  };
+  // - Depth-specific highlights may appear in multiple shapes:
+  //   * depth.label.inner/outer.highlight (preferred)
+  //   * depth.highlight.label.inner/outer (alternate)
+  //   * legacy depth.label.highlight (flat)
+  // - Normalize these forms into a nested `depthLabelHighlight` object with optional
+  //   `inner` and `outer` groups. Map `strokeColor` -> `textColor` as an alias
+  //   for backward compatibility.
+  const depthLabelHighlight = {};
+  // Try inner-group highlights from several possible locations (preferred -> fallback)
+  const innerFromLabel = labelFromDepth?.inner?.highlight ?? null;
+  const innerFromDepthHighlight = depthStyle?.highlight?.label?.inner ?? null;
+  const innerLegacy = labelFromDepth?.highlight ?? null;
+  const innerRaw =
+    innerFromLabel ?? innerFromDepthHighlight ?? innerLegacy ?? null;
+  if (innerRaw) {
+    depthLabelHighlight.inner = {
+      textColor: innerRaw?.textColor ?? innerRaw?.strokeColor,
+      textOpacity: innerRaw?.textOpacity,
+      fontWeight: innerRaw?.fontWeight,
+    };
+  }
+  // Try outer-group highlights
+  const outerFromLabel = labelFromDepth?.outer?.highlight ?? null;
+  const outerFromDepthHighlight = depthStyle?.highlight?.label?.outer ?? null;
+  const outerRaw = outerFromLabel ?? outerFromDepthHighlight ?? null;
+  if (outerRaw) {
+    depthLabelHighlight.outer = {
+      textColor: outerRaw?.textColor ?? outerRaw?.strokeColor,
+      textOpacity: outerRaw?.textOpacity,
+      fontWeight: outerRaw?.fontWeight,
+    };
+  }
+  // Global highlight (flat) remains the canonical global location
 
   // Return both merged top-level properties (for backwards compatibility) and
   // explicit `inner` / `outer` groups so callers can choose sizing rules.
@@ -237,7 +269,11 @@ export function getLabelStyle(
     fontWeight,
     padding,
     link,
-    highlight,
+    // Return the normalized nested highlight so downstream code (computeLabelLayout)
+    // can merge depth-specific inner/outer highlight groups with global highlight.
+    highlight: Object.keys(depthLabelHighlight).length
+      ? depthLabelHighlight
+      : undefined,
     insideFitFactor,
     inner: {
       minFontSize: innerMinFontSize,
@@ -374,26 +410,48 @@ export function drawCenteredLabel(
   const fontSize = calculateFontSize(radius, minFontSize, maxFontSize);
   const h = highlightStyle || {};
   const ls = labelStyle || {};
-  // For inside (centered) labels prefer `inner` group highlight values first.
-  // Support both flat highlight objects and nested { inner: { ... } } shape.
-  const hInner = highlightActive ? h && (h.inner ?? h) : null;
-  // Fill color: prefer active highlight inner/textColor, then inner label value, then fallback
+  // Prefer flat/top-level highlight fields over nested `inner` group values.
+  // Only consider nested `inner` highlight when the highlight object signals a depth-specific highlight.
+  const hHasDepth = h && /** @type {any} */ (h).__hasDepthHighlight;
+  const hFlat =
+    highlightActive &&
+    h &&
+    hHasDepth &&
+    (h.textColor !== undefined ||
+      /** @type {any} */ (h).strokeColor !== undefined ||
+      h.textOpacity !== undefined ||
+      h.fontWeight !== undefined)
+      ? h
+      : null;
+  const hInner =
+    highlightActive && h && /** @type {any} */ (h).__hasDepthHighlight
+      ? (h.inner ?? null)
+      : null;
+  // Fill color: prefer active flat highlight.textColor/strokeColor, then inner highlight textColor, then inner label value, then top-level label textColor
   const fillColor =
-    hInner && hInner.textColor !== undefined
-      ? hInner.textColor
-      : (ls.inner?.textColor ?? ls.textColor);
-  // Opacity: prefer active highlight inner/textOpacity, then inner label opacity, then 1
+    hFlat && hFlat.textColor !== undefined
+      ? hFlat.textColor
+      : hFlat && /** @type {any} */ (hFlat).strokeColor !== undefined
+        ? /** @type {any} */ (hFlat).strokeColor
+        : hInner && hInner.textColor !== undefined
+          ? hInner.textColor
+          : (ls.inner?.textColor ?? ls.textColor);
+  // Opacity: prefer active flat highlight textOpacity, then inner highlight opacity, then inner label opacity, then 1
   const alpha =
-    hInner && hInner.textOpacity !== undefined
-      ? hInner.textOpacity
-      : (ls.inner?.textOpacity ?? ls.textOpacity ?? 1);
-  // Font weight: prefer active highlight inner/fontWeight, then inner label weight, then none
+    hFlat && hFlat.textOpacity !== undefined
+      ? hFlat.textOpacity
+      : hInner && hInner.textOpacity !== undefined
+        ? hInner.textOpacity
+        : (ls.inner?.textOpacity ?? ls.textOpacity ?? 1);
+  // Font weight: prefer active flat highlight fontWeight, then inner highlight fontWeight, then inner label weight, then none
   const fontWeightPrefix =
-    hInner && hInner.fontWeight
-      ? `${hInner.fontWeight} `
-      : (ls.inner?.fontWeight ?? ls.fontWeight)
-        ? `${ls.inner?.fontWeight ?? ls.fontWeight} `
-        : '';
+    hFlat && hFlat.fontWeight
+      ? `${hFlat.fontWeight} `
+      : hInner && hInner.fontWeight
+        ? `${hInner.fontWeight} `
+        : (ls.inner?.fontWeight ?? ls.fontWeight)
+          ? `${ls.inner?.fontWeight ?? ls.fontWeight} `
+          : '';
 
   const fontFamily = ls.inner?.fontFamily ?? ls.fontFamily ?? 'monospace';
   setCanvasStyles(ctx, {
@@ -851,13 +909,71 @@ export function computeLabelLayout(
     };
 
     // Global label highlight is now at the top-level `mergedStyle.highlight.label`.
-    // Depth-based highlights remain under per-depth `label.highlight`.
+    // Depth-based highlights remain under per-node `perNodeStyle.highlight`.
     const globalHighlight = mergedStyle?.highlight?.label ?? {};
     const depthHighlight = perNodeStyle?.highlight ?? {};
-    nodeData.highlightStyle = {
+    // Build the base merged highlight (global + depth). We will only propagate
+    // flattened convenience fields (textColor/textOpacity/fontWeight) from the
+    // depth-specific highlight if a per-node depth highlight exists. This prevents
+    // global highlight values from being applied as flattened inner-label overrides
+    // for nodes that do not have a depth override.
+    const baseHighlightMerged = {
       ...(globalHighlight || {}),
       ...(depthHighlight || {}),
     };
+    // Only derive flattened convenience fields from the depth-specific highlight
+    // (prefer inner -> outer -> flat) when a per-node depth highlight is actually provided.
+    let flattenedFromDepth = {
+      textColor: undefined,
+      textOpacity: undefined,
+      fontWeight: undefined,
+    };
+    const hasDepthHighlight =
+      depthHighlight && Object.keys(depthHighlight).length > 0;
+    if (hasDepthHighlight) {
+      flattenedFromDepth = {
+        textColor:
+          depthHighlight?.inner?.textColor ??
+          depthHighlight?.outer?.textColor ??
+          depthHighlight?.textColor ??
+          undefined,
+        textOpacity:
+          depthHighlight?.inner?.textOpacity ??
+          depthHighlight?.outer?.textOpacity ??
+          depthHighlight?.textOpacity ??
+          undefined,
+        fontWeight:
+          depthHighlight?.inner?.fontWeight ??
+          depthHighlight?.outer?.fontWeight ??
+          depthHighlight?.fontWeight ??
+          undefined,
+      };
+    }
+    // Compose final nodeData.highlightStyle:
+    // - always include merged base (global + depth)
+    // - include flattened convenience fields only when derived from a depth highlight
+    // Start with the merged base highlight (global + depth).
+    // Compose final nodeData.highlightStyle as a merge of global + depth highlight.
+    // Do NOT attach flattened per-depth fields here; that caused global highlights to
+    // override all nodes. Preserve only the merged highlight object and a flag
+    // indicating whether the node has a depth-specific highlight.
+    nodeData.highlightStyle = {
+      ...baseHighlightMerged,
+      __hasDepthHighlight: hasDepthHighlight,
+    };
+    if (
+      typeof hoveredNodeId !== 'undefined' &&
+      hoveredNodeId !== null &&
+      node.id === hoveredNodeId &&
+      typeof console !== 'undefined' &&
+      typeof console.debug === 'function'
+    ) {
+      console.debug(
+        '[computeLabelLayout] highlightStyle for hovered node:',
+        node.id,
+        nodeData.highlightStyle,
+      );
+    }
   });
 
   const { labels, links } = calculateLabelPositions(

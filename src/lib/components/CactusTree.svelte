@@ -28,7 +28,7 @@
    * @property {number} height
    * @property {Array<Object>} nodes - array of nodes ({ id, name, parent, weight? })
    * @property {Array<Object>} [links] - array of links ({ source, target })
-   * @property {Object} [options] - options (overlap, arcSpan, sizeGrowthRate, orientation, zoom, numLabels, bundlingStrength)
+   * @property {Object} [options] - options (overlap, arcSpan, sizeGrowthRate, orientation, zoom, numLabels, edgeOptions)
    * @property {Object} [styles] - style overrides (node, edge, label, line, highlight, depths)
    * @property {boolean} [pannable]
    * @property {boolean} [zoomable]
@@ -67,7 +67,12 @@
     orientation: Math.PI / 2,
     zoom: 1.0,
     numLabels: 30,
-    bundlingStrength: 0.97,
+    // Edge-specific options (moved bundlingStrength here)
+    edgeOptions: {
+      bundlingStrength: 0.97,
+      strategy: 'hide', // 'hide' (default) or 'mute'
+      muteOpacity: 0.25,
+    },
   };
 
   const defaultStyle = {
@@ -351,7 +356,10 @@
       mergedStyle,
       hoveredNodeId,
       highlightedNodeIds,
-      Number(mergedOptions?.bundlingStrength ?? 0.97),
+      Number(mergedOptions?.edgeOptions?.bundlingStrength ?? 0.97),
+      mergedOptions?.edgeOptions ?? {},
+      depthStyleCache,
+      negativeDepthNodes,
     );
 
     drawNodes(
@@ -500,6 +508,7 @@
     void mergedOptions.sizeGrowthRate;
     void mergedOptions.orientation;
     void mergedOptions.zoom;
+    void mergedOptions.edgeOptions;
     void currentZoom;
     void panX;
     void panY;
