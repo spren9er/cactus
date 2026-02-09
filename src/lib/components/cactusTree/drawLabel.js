@@ -539,10 +539,10 @@ export function computeLabelLayout(
   // Determine nodes to show labels for (hover vs normal)
   let nodesWithLabels;
 
-  // When any node is hovered, restrict to nodes that are associated via visibleNodeIds.
+  // When hovering a leaf node, restrict to nodes that are associated via visibleNodeIds.
   // Limit total to labelLimit largest by radius. Do NOT automatically include
   // nodes because they fit inside when hovering.
-  if (hoveredNodeId !== null) {
+  if (hoveredNodeId !== null && leafNodes.has(hoveredNodeId)) {
     const visibleSet = Array.isArray(visibleNodeIds)
       ? new Set(visibleNodeIds)
       : visibleNodeIds || new Set();
