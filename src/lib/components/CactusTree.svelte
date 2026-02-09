@@ -69,7 +69,7 @@
     edgeOptions: {
       bundlingStrength: 0.97,
       strategy: 'hide',
-      muteOpacity: 0.25,
+      muteOpacity: 0.2,
     },
   };
 
@@ -325,6 +325,8 @@
       negativeDepthNodes,
     );
 
+    // Compute the set of visible nodes that participate in edges according to current filtering.
+    // This leverages computeVisibleEdgeNodeIds (which respects shouldFilterEdge etc.)
     const edgeNodeIds = computeVisibleEdgeNodeIds(
       links,
       nodeIdToRenderedNodeMap,
@@ -338,23 +340,37 @@
       }
     }
 
-    const highlightedNodeIds = (() => {
-      const neighbors = new SvelteSet();
-      if (!hoveredNodeId) return neighbors;
-      neighbors.add(hoveredNodeId);
+    // Node highlight set: the hovered node AND its directly associated neighbor nodes (when visible).
+    // These nodes should be styled as highlighted.
+    const nodeHighlightedIds = (() => {
+      const s = new SvelteSet();
+      if (!hoveredNodeId) return s;
+      s.add(hoveredNodeId);
+
       for (const link of links || []) {
         if (link.source === hoveredNodeId && edgeNodeIdSet.has(link.target)) {
-          neighbors.add(link.target);
+          s.add(link.target);
         } else if (
           link.target === hoveredNodeId &&
           edgeNodeIdSet.has(link.source)
         ) {
-          neighbors.add(link.source);
+          s.add(link.source);
         }
       }
-      return neighbors;
+      return s;
     })();
 
+    // Edge highlight set: only the hovered node itself — edges are considered highlighted
+    // only when one endpoint is the hovered node. This prevents edges between neighbors
+    // (neither endpoint being the hovered node) from being treated as highlighted.
+    const edgeHighlightedNodeIds = (() => {
+      if (!hoveredNodeId) return null;
+      const s = new SvelteSet();
+      s.add(hoveredNodeId);
+      return s;
+    })();
+
+    // Draw non-leaf nodes first with node-highlight set that includes neighbors.
     drawNodes(
       ctx,
       renderedNodes,
@@ -363,10 +379,11 @@
       mergedStyle,
       depthStyleCache,
       negativeDepthNodes,
-      highlightedNodeIds,
+      nodeHighlightedIds,
       'nonLeaf',
     );
 
+    // Draw edges — pass only the hovered-node-only set for edge highlighting.
     drawEdges(
       ctx,
       links,
@@ -374,13 +391,14 @@
       hierarchicalPathCache,
       mergedStyle,
       hoveredNodeId,
-      highlightedNodeIds,
+      edgeHighlightedNodeIds,
       Number(mergedOptions?.edgeOptions?.bundlingStrength ?? 0.97),
       mergedOptions?.edgeOptions ?? {},
       depthStyleCache,
       negativeDepthNodes,
     );
 
+    // Draw leaf nodes (so they appear on top of edges) with same node highlight set.
     drawNodes(
       ctx,
       renderedNodes,
@@ -389,16 +407,17 @@
       mergedStyle,
       depthStyleCache,
       negativeDepthNodes,
-      highlightedNodeIds,
+      nodeHighlightedIds,
       'leaf',
     );
 
+    // Draw labels — use nodeHighlightedIds so neighbor labels are also emphasized.
     drawLabels(
       ctx,
       renderedNodes,
       leafNodes,
       hoveredNodeId,
-      highlightedNodeIds,
+      nodeHighlightedIds,
       mergedStyle,
       depthStyleCache,
       negativeDepthNodes,

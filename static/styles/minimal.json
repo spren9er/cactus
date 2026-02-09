@@ -37,13 +37,13 @@
     },
     "label": {
       "inner": {
-        "strokeColor": "transparent"
+        "textColor": "transparent"
       },
       "outer": {
-        "strokeColor": "transparent",
-        "padding": 0,
+        "textColor": "transparent",
+        "padding": 3,
         "link": {
-          "strokeColor": "transparent",
+          "strokeColor": "#333333",
           "length": 0,
           "padding": 0
         }
@@ -70,14 +70,13 @@
         },
         "label": {
           "inner": {
-            "strokeColor": "#333333"
+            "textColor": "#333333"
           },
           "outer": {
-            "strokeColor": "#333333",
-            "padding": 1,
+            "textColor": "#333333",
+            "padding": 3,
             "link": {
-              "strokeColor": "#333333",
-              "length": 30,
+              "length": 15,
               "padding": 0
             }
           }

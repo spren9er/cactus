@@ -318,6 +318,22 @@ export function getLabelStyle(
 }
 
 /**
+ * Normalized membership test for highlightedNodeIds which may be an Array, Set-like,
+ * or falsy.
+ *
+ * @param {Array<string>|Set<string>|null|undefined} container - container to test
+ * @param {string} id - node id to look for
+ * @returns {boolean}
+ */
+function highlightedContains(container, id) {
+  if (!container) return false;
+  if (Array.isArray(container)) return container.indexOf(id) !== -1;
+  if (container && typeof container.has === 'function')
+    return container.has(id);
+  return false;
+}
+
+/**
  * Whether a leaf node's label should be shown (consider edge-bundling hover behavior)
  *
  * @param {string} nodeId
@@ -512,6 +528,19 @@ export function shouldShowLabel(
  * @param {Map<number, Set<string>>} negativeDepthNodes
  * @returns {void}
  */
+/**
+ * Draw connectors (leader lines) between node anchor and outside label positions.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Array<{x1:number,y1:number,x2:number,y2:number,nodeId:string}>} links
+ * @param {any} mergedStyle
+ * @param {Array<any>} nodesWithLabels
+ * @param {Map<number, any>} depthStyleCache
+ * @param {Map<number, Set<string>>} negativeDepthNodes
+ * @param {string|null|undefined} hoveredNodeId - id of the hovered node (may be null/undefined)
+ * @param {Array<string>|Set<string>|null|undefined} highlightedNodeIds - collection (Array or Set-like) of highlighted node ids
+ * @returns {void}
+ */
 export function drawLabelConnectors(
   ctx,
   links,
@@ -519,6 +548,8 @@ export function drawLabelConnectors(
   nodesWithLabels = [],
   depthStyleCache = new Map(),
   negativeDepthNodes = new Map(),
+  hoveredNodeId,
+  highlightedNodeIds,
 ) {
   if (!ctx || !links || links.length === 0) return;
 
@@ -537,38 +568,98 @@ export function drawLabelConnectors(
         nodesWithLabels &&
         nodesWithLabels.find((n) => n && n.node && n.node.id === nodeId);
 
+      // Build a base linkStyle using global -> depth -> node precedence (node overrides depth overrides global).
       let linkStyle = null;
-      if (nodeData && nodeData.linkStyle) {
-        linkStyle = nodeData.linkStyle;
-      } else {
-        let depthLink = {};
-        if (nodeData) {
-          const depth = nodeData.depth;
-          const labelStyle = getLabelStyle(
-            depth,
-            nodeId,
-            mergedStyle,
-            depthStyleCache,
-            negativeDepthNodes,
-          );
-          depthLink = (labelStyle && labelStyle.link) || {};
-        }
-        const nodeLink =
-          nodeData &&
-          nodeData.node &&
-          nodeData.node.label &&
-          nodeData.node.label.link
+      let depthLink = {};
+      let nodeLink = {};
+      let labelStyle = null;
+      if (nodeData) {
+        const depth = nodeData.depth;
+        labelStyle = getLabelStyle(
+          depth,
+          nodeId,
+          mergedStyle,
+          depthStyleCache,
+          negativeDepthNodes,
+        );
+        depthLink = (labelStyle && labelStyle.link) || {};
+        nodeLink =
+          nodeData.node && nodeData.node.label && nodeData.node.label.link
             ? nodeData.node.label.link
             : {};
+      }
+
+      linkStyle = {
+        ...(globalLink || {}),
+        ...(depthLink || {}),
+        ...(nodeLink || {}),
+      };
+
+      // Determine if this node is currently highlighted (hover or neighbor)
+      const isHighlighted =
+        (hoveredNodeId ?? undefined) === nodeId ||
+        highlightedContains(highlightedNodeIds, nodeId);
+
+      if (isHighlighted) {
+        // Prefer depth-level highlight.link when present, then fall back to global highlight.link.
+        const globalHighlightLink =
+          mergedStyle?.highlight?.label?.outer?.link ??
+          mergedStyle?.highlight?.label?.link ??
+          {};
+
+        // Attempt to find a depth config object and any highlight.link nested there.
+        let depthStyle = null;
+        if (
+          depthStyleCache &&
+          nodeData &&
+          depthStyleCache.has(nodeData.depth)
+        ) {
+          depthStyle = depthStyleCache.get(nodeData.depth);
+        } else if (mergedStyle?.depths && nodeData) {
+          for (const ds of mergedStyle.depths) {
+            if (ds.depth === nodeData.depth) {
+              depthStyle = ds;
+              break;
+            } else if (ds.depth < 0) {
+              const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
+              if (
+                nodesAtThisNegativeDepth &&
+                nodesAtThisNegativeDepth.has(nodeId)
+              ) {
+                depthStyle = ds;
+                break;
+              }
+            }
+          }
+        }
+
+        const depthHighlightLink =
+          depthStyle?.highlight?.label?.outer?.link ??
+          depthStyle?.highlight?.label?.link ??
+          depthStyle?.label?.highlight?.link ??
+          {};
+
+        // Apply highlight overrides (depth highlight first, then global highlight) on top of base linkStyle.
         linkStyle = {
-          ...(globalLink || {}),
-          ...(depthLink || {}),
-          ...(nodeLink || {}),
+          ...(linkStyle || {}),
+          ...(depthHighlightLink || {}),
+          ...(globalHighlightLink || {}),
         };
       }
 
+      // Prefer explicit link strokeColor, then per-node highlight (outer.textColor or outer.strokeColor
+      // or flat textColor/strokeColor), then fall back to global outer/text values.
+      let highlightStrokeOrText = undefined;
+      if (nodeData && nodeData.highlightStyle) {
+        const hs = nodeData.highlightStyle;
+        highlightStrokeOrText =
+          (hs.outer && (hs.outer.textColor ?? hs.outer.strokeColor)) ??
+          hs.textColor ??
+          hs.strokeColor;
+      }
       const color =
         linkStyle.strokeColor ??
+        highlightStrokeOrText ??
         globalOuter.textColor ??
         globalLabel.textColor ??
         '#333333';
@@ -655,12 +746,14 @@ export function drawPositionedLabel(
   // outside labels continue to prefer `outer` group values and outer overrides.
   const resolvedTextColor = labelData.isInside
     ? (nhInner?.textColor ??
+      nhInner?.strokeColor ??
       (labelStyle.inner && labelStyle.inner.textColor !== undefined
         ? labelStyle.inner.textColor
         : labelStyle.textColor !== undefined
           ? labelStyle.textColor
           : '#333333'))
     : (nhOuter?.textColor ??
+      nhOuter?.strokeColor ??
       (labelStyle.outer && labelStyle.outer.textColor !== undefined
         ? labelStyle.outer.textColor
         : labelStyle.textColor !== undefined
@@ -918,6 +1011,63 @@ export function computeLabelLayout(
     nodeData.linkPadding = node.label.link.padding;
     nodeData.linkLength = node.label.link.length;
 
+    // If this node is highlighted (hover or neighbor), allow highlight-level
+    // link overrides (depth highlight or global highlight) to affect layout.
+    const nodeIsHighlighted =
+      (typeof hoveredNodeId !== 'undefined' &&
+        hoveredNodeId !== null &&
+        node.id === hoveredNodeId) ||
+      highlightedContains(highlightedNodeIds, node.id);
+
+    if (nodeIsHighlighted) {
+      const globalHighlightLink =
+        mergedStyle?.highlight?.label?.outer?.link ??
+        mergedStyle?.highlight?.label?.link ??
+        {};
+
+      // Find depth-style object for this node (respect negative-depth mappings).
+      let depthStyleObj = null;
+      if (depthStyleCache && depthStyleCache.has(depth)) {
+        depthStyleObj = depthStyleCache.get(depth);
+      } else if (mergedStyle?.depths) {
+        for (const ds of mergedStyle.depths) {
+          if (ds.depth === depth) {
+            depthStyleObj = ds;
+            break;
+          } else if (ds.depth < 0) {
+            const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
+            if (
+              nodesAtThisNegativeDepth &&
+              nodesAtThisNegativeDepth.has(node.id)
+            ) {
+              depthStyleObj = ds;
+              break;
+            }
+          }
+        }
+      }
+
+      const depthHighlightLink =
+        depthStyleObj?.highlight?.label?.outer?.link ??
+        depthStyleObj?.highlight?.label?.link ??
+        depthStyleObj?.label?.highlight?.link ??
+        {};
+
+      // Apply highlight overrides for layout (depth highlight preferred).
+      node.label.link.padding =
+        depthHighlightLink?.padding ??
+        globalHighlightLink?.padding ??
+        node.label.link.padding;
+      node.label.link.length =
+        depthHighlightLink?.length ??
+        globalHighlightLink?.length ??
+        node.label.link.length;
+
+      // Reflect the effective values onto nodeData for the positioner.
+      nodeData.linkPadding = node.label.link.padding;
+      nodeData.linkLength = node.label.link.length;
+    }
+
     const globalLink =
       mergedStyle?.label?.outer?.link ?? mergedStyle?.label?.link ?? {};
     const depthLink = perNodeStyle?.link ?? {};
@@ -1057,6 +1207,8 @@ export function drawLabels(
       nodesWithLabels,
       depthStyleCache,
       negativeDepthNodes,
+      hoveredNodeId,
+      highlightedNodeIds,
     );
   }
 
@@ -1070,11 +1222,8 @@ export function drawLabels(
     // Determine highlight state for this node (used by both inner and outer label rendering)
     const { node } = nodeData;
     const isHighlighted =
-      (hoveredNodeId !== null && hoveredNodeId === node.id) ||
-      (highlightedNodeIds &&
-        (Array.isArray(highlightedNodeIds)
-          ? highlightedNodeIds.includes(node.id)
-          : highlightedNodeIds.has(node.id)));
+      hoveredNodeId === node.id ||
+      highlightedContains(highlightedNodeIds, node.id);
 
     if (labelData.isInside) {
       const { depth, radius } = nodeData;

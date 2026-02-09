@@ -24,7 +24,7 @@
     numLabels: 30,
     bundlingStrength: 0.97,
     strategy: 'mute',
-    muteOpacity: 0.25,
+    muteOpacity: 0.2,
   };
 
   let showEdgeBundling = true;
