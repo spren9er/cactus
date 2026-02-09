@@ -213,29 +213,6 @@
           muteOpacity: 0.25,
         },
       }}
-      styles={{
-        highlight: {
-          node: {
-            fillColor: '#dedede',
-            strokeColor: '#333333',
-          },
-          label: {
-            inner: {
-              strokeColor: '#efefef',
-            },
-          },
-        },
-        depths: [
-          {
-            depth: -1,
-            node: { fillColor: '#333333', strokeColor: '#333333' },
-            highlight: {
-              node: { fillColor: '#ffbbb7', strokeColor: '#ea575a' },
-              label: { inner: { strokeColor: '#ea575a' } },
-            },
-          },
-        ],
-      }}
     />
   </div>
 

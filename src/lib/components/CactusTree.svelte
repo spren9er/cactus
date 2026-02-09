@@ -48,7 +48,6 @@
    * @property {Object} [meta]
    */
 
-  // Props (kept simple in code; types above for docs only)
   let {
     width,
     height,
@@ -67,10 +66,9 @@
     orientation: Math.PI / 2,
     zoom: 1.0,
     numLabels: 30,
-    // Edge-specific options (moved bundlingStrength here)
     edgeOptions: {
       bundlingStrength: 0.97,
-      strategy: 'hide', // 'hide' (default) or 'mute'
+      strategy: 'hide',
       muteOpacity: 0.25,
     },
   };
@@ -120,9 +118,9 @@
     },
     highlight: {
       node: {
-        fillColor: '#ffbbb7',
+        fillColor: '#dedede',
         fillOpacity: 1,
-        strokeColor: '#ea575a',
+        strokeColor: '#333333',
         strokeOpacity: 1,
         strokeWidth: 1,
       },
@@ -144,7 +142,17 @@
         },
       },
     },
-    depths: [],
+    depths: [
+      {
+        depth: -1,
+        node: { fillColor: '#333333', strokeColor: '#333333' },
+        label: { inner: { textColor: '#efefef' } },
+        highlight: {
+          node: { fillColor: '#ffbbb7', strokeColor: '#ea575a' },
+          label: { inner: { strokeColor: '#ea575a' } },
+        },
+      },
+    ],
   };
 
   // Merge options and styles using simple derived-style helpers
