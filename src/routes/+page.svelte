@@ -23,6 +23,9 @@
     zoom: 1.0,
     numLabels: 30,
     bundlingStrength: 0.97,
+    // Edge options
+    strategy: 'mute', // 'hide' | 'mute'
+    muteOpacity: 0.25,
   };
 
   let showEdgeBundling = true;
@@ -209,36 +212,66 @@
         numLabels: config.numLabels,
         edgeOptions: {
           bundlingStrength: config.bundlingStrength,
-          strategy: 'mute',
-          muteOpacity: 0.25,
+          strategy: config.strategy,
+          muteOpacity: config.muteOpacity,
         },
       }}
     />
   </div>
 
   <div class="edge-bundling-control">
-    <label class="edge-bundling-label">
-      <input type="checkbox" bind:checked={showEdgeBundling} />
-      <span class="edge-bundling-text">Hierarchical Edge Bundling</span>
+    <div class="bundle-row row1">
+      <label class="edge-bundling-label">
+        <input type="checkbox" bind:checked={showEdgeBundling} />
+        <span class="edge-bundling-text">Hierarchical Edge Bundling</span>
+      </label>
 
-      <span
-        class="bundling-inline"
-        role="group"
-        aria-label="Bundling strength control"
-      >
-        <input
-          class="bundling-range"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          bind:value={config.bundlingStrength}
+      <label class="strategy-label">
+        Strategy:
+        <select
+          bind:value={config.strategy}
           disabled={!showEdgeBundling}
           aria-disabled={!showEdgeBundling}
-        />
-        <span class="bundling-value">{config.bundlingStrength.toFixed(2)}</span>
-      </span>
-    </label>
+        >
+          <option value="hide">hide</option>
+          <option value="mute">mute</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="bundle-row row2">
+      <div class="control-group">
+        <label for="bundlingStrength">
+          Bundling Strength: {config.bundlingStrength.toFixed(2)}
+          <input
+            id="bundlingStrength"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            bind:value={config.bundlingStrength}
+            disabled={!showEdgeBundling}
+            aria-disabled={!showEdgeBundling}
+          />
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label for="muteOpacity">
+          Mute Opacity: {config.muteOpacity.toFixed(2)}
+          <input
+            id="muteOpacity"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            bind:value={config.muteOpacity}
+            disabled={!showEdgeBundling || config.strategy === 'hide'}
+            aria-disabled={!showEdgeBundling || config.strategy === 'hide'}
+          />
+        </label>
+      </div>
+    </div>
   </div>
 
   <footer class="footer">
@@ -363,10 +396,20 @@
     font-family: monospace;
   }
 
+  .bundle-row {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+
   .edge-bundling-label {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     font-size: 11px;
     color: #333333;
     cursor: pointer;
@@ -382,28 +425,21 @@
     color: #333333;
   }
 
-  .bundling-inline {
+  .strategy-label {
     display: inline-flex;
     align-items: center;
-    margin-left: 25px;
-  }
-
-  .bundling-range {
-    width: 140px;
-    height: 12px;
-    vertical-align: middle;
-  }
-
-  .bundling-range[disabled] {
-    opacity: 0.45;
-    filter: grayscale(30%);
-    cursor: not-allowed;
-  }
-
-  .bundling-value {
-    min-width: 40px;
-    text-align: right;
+    gap: 6px;
     font-size: 11px;
+    color: #333333;
+  }
+
+  .strategy-label select {
+    padding: 4px 6px;
+    font-family: monospace;
+    font-size: 11px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: white;
     color: #333333;
   }
 

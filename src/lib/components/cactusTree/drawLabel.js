@@ -650,64 +650,35 @@ export function drawPositionedLabel(
   // For inside-positioned labels we should prefer inner highlight overrides.
   const nhInner = nodeHighlight ? (nodeHighlight.inner ?? nodeHighlight) : null;
 
-  // Resolve visual properties differently depending on whether the label is inside the node.
-  // When inside, prefer `inner` group values; otherwise prefer `outer` group values.
-  let resolvedTextColor;
-  let resolvedTextOpacity;
-  let resolvedFontWeight;
-  let fontFamily;
-
-  if (labelData.isInside) {
-    resolvedTextColor =
-      nhInner?.textColor ??
-      (labelStyle.inner && labelStyle.inner.textColor !== undefined
-        ? labelStyle.inner.textColor
-        : labelStyle.textColor !== undefined
-          ? labelStyle.textColor
-          : '#333333');
-    resolvedTextOpacity =
-      nhInner?.textOpacity ??
-      (labelStyle.inner && labelStyle.inner.textOpacity !== undefined
-        ? labelStyle.inner.textOpacity
-        : labelStyle.textOpacity !== undefined
-          ? labelStyle.textOpacity
-          : 1);
-    resolvedFontWeight =
-      nhInner?.fontWeight ??
-      (labelStyle.inner && labelStyle.inner.fontWeight !== undefined
-        ? labelStyle.inner.fontWeight
-        : labelStyle.fontWeight);
-    fontFamily =
-      (labelStyle.inner && labelStyle.inner.fontFamily) ??
-      labelStyle.fontFamily ??
-      'monospace';
-  } else {
-    resolvedTextColor =
-      nhOuter?.textColor ??
-      (labelStyle.outer && labelStyle.outer.textColor !== undefined
-        ? labelStyle.outer.textColor
-        : labelStyle.textColor !== undefined
-          ? labelStyle.textColor
-          : '#333333');
-    resolvedTextOpacity =
-      nhOuter?.textOpacity ??
-      (labelStyle.outer && labelStyle.outer.textOpacity !== undefined
-        ? labelStyle.outer.textOpacity
-        : labelStyle.textOpacity !== undefined
-          ? labelStyle.textOpacity
-          : 1);
-    resolvedFontWeight =
-      nhOuter?.fontWeight ??
-      (labelStyle.outer && labelStyle.outer.fontWeight !== undefined
-        ? labelStyle.outer.fontWeight
-        : labelStyle.fontWeight);
-    fontFamily =
-      (labelStyle.outer && labelStyle.outer.fontFamily) ??
-      labelStyle.fontFamily ??
-      'monospace';
-  }
+  // For outside labels, strictly prefer `outer` group values for visual properties
+  // (textColor, textOpacity, fontFamily, fontWeight, fontSize). Node-level highlight overrides
+  // (nodeData.highlightStyle / nodeData.highlightStyle.outer) take precedence when provided.
+  const resolvedTextColor =
+    nhOuter?.textColor ??
+    (labelStyle.outer && labelStyle.outer.textColor !== undefined
+      ? labelStyle.outer.textColor
+      : labelStyle.textColor !== undefined
+        ? labelStyle.textColor
+        : '#333333');
+  const resolvedTextOpacity =
+    nhOuter?.textOpacity ??
+    (labelStyle.outer && labelStyle.outer.textOpacity !== undefined
+      ? labelStyle.outer.textOpacity
+      : labelStyle.textOpacity !== undefined
+        ? labelStyle.textOpacity
+        : 1);
+  const resolvedFontWeight =
+    nhOuter?.fontWeight ??
+    (labelStyle.outer && labelStyle.outer.fontWeight !== undefined
+      ? labelStyle.outer.fontWeight
+      : labelStyle.fontWeight);
 
   const fontWeightPrefix = resolvedFontWeight ? `${resolvedFontWeight} ` : '';
+
+  const fontFamily =
+    (labelStyle.outer && labelStyle.outer.fontFamily) ??
+    labelStyle.fontFamily ??
+    'monospace';
 
   setCanvasStyles(ctx, {
     fillStyle: resolvedTextColor,
