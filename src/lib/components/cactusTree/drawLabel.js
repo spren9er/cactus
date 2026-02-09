@@ -184,7 +184,7 @@ export function shouldShowLeafLabel(
  * @returns {number}
  */
 export function calculateFontSize(radius, minFontSize = 8, maxFontSize = 14) {
-  return Math.min(maxFontSize, Math.max(minFontSize, radius * 0.2));
+  return Math.min(maxFontSize, Math.max(minFontSize, radius * 0.25));
 }
 
 /**
