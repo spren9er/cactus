@@ -123,7 +123,7 @@
       },
       edge: {
         strokeColor: '#ea575a',
-        strokeOpacity: 1,
+        strokeOpacity: 0.2,
         strokeWidth: 1,
       },
       label: {
@@ -133,7 +133,7 @@
           fontWeight: 'bold',
         },
         outer: {
-          textColor: '#333333',
+          textColor: '#ea575a',
           textOpacity: 1,
           fontWeight: 'normal',
         },
