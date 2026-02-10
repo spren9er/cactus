@@ -1,5 +1,5 @@
 /**
- * Label positioning utilities for CactusTree component
+ * Label positioning utilities for CactusTree
  * Handles smart label placement to avoid overlaps and provide readable text layout
  */
 

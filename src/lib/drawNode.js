@@ -1,5 +1,5 @@
 /**
- * Node drawing utilities for CactusTree component
+ * Node drawing utilities for CactusTree
  */
 
 import { setCanvasStyles } from './canvasUtils.js';

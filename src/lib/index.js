@@ -1,2 +1,4 @@
-export { default as CactusTree } from '$lib/components/CactusTree.svelte';
-export { CactusLayout } from '$lib/components/cactusTree/cactusLayout';
+export { default as Cactus } from '$lib/components/CactusTree.svelte';
+
+export { CactusTree } from '$lib/cactusTree.js';
+export { CactusLayout } from '$lib/cactusLayout.js';

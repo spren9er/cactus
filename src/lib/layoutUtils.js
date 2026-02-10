@@ -1,9 +1,8 @@
 /**
- * Layout utilities for CactusTree component
+ * Layout utilities for CactusTree
  * Handles layout calculations, lookup maps, and performance optimization
  */
 
-import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { CactusLayout } from './cactusLayout.js';
 
 /** @type {CactusLayout | null} */
@@ -168,13 +167,13 @@ export function buildLookupMaps(renderedNodes, mergedStyle) {
   // Ensure parent references are properly set up
   const nodesWithRefs = setupParentReferences(renderedNodes);
   // Create lookup maps for performance
-  const nodeIdToRenderedNodeMap = new SvelteMap();
-  const leafNodes = new SvelteSet();
-  const negativeDepthNodes = new SvelteMap();
-  const nodeIdToNodeMap = new SvelteMap();
-  const depthStyleCache = new SvelteMap();
-  const hierarchicalPathCache = new SvelteMap();
-  const parentToChildrenNodeMap = new SvelteMap();
+  const nodeIdToRenderedNodeMap = new Map();
+  const leafNodes = new Set();
+  const negativeDepthNodes = new Map();
+  const nodeIdToNodeMap = new Map();
+  const depthStyleCache = new Map();
+  const hierarchicalPathCache = new Map();
+  const parentToChildrenNodeMap = new Map();
 
   // Build node mappings - use nodes with proper parent references
   nodesWithRefs.forEach((nodeData) => {
@@ -196,7 +195,7 @@ export function buildLookupMaps(renderedNodes, mergedStyle) {
 
   // Build hierarchy analysis maps for faster lookups
   // Create a temporary parent-to-children map from the node structure
-  const tempParentToChildrenMap = new SvelteMap();
+  const tempParentToChildrenMap = new Map();
   nodesWithRefs.forEach((nodeData) => {
     if (nodeData.node.parent) {
       if (!tempParentToChildrenMap.has(nodeData.node.parent)) {
@@ -225,13 +224,13 @@ export function buildLookupMaps(renderedNodes, mergedStyle) {
   }
 
   // Calculate negative depth mappings
-  negativeDepthNodes.set(-1, new SvelteSet(leafNodes));
+  negativeDepthNodes.set(-1, new Set(leafNodes));
 
-  let currentLevelNodes = new SvelteSet(leafNodes);
+  let currentLevelNodes = new Set(leafNodes);
   let depthLevel = -2;
 
   while (currentLevelNodes.size > 0) {
-    const nextLevelNodes = new SvelteSet();
+    const nextLevelNodes = new Set();
 
     // Get all direct parents of current level
     currentLevelNodes.forEach((nodeId) => {
@@ -243,7 +242,7 @@ export function buildLookupMaps(renderedNodes, mergedStyle) {
 
     if (nextLevelNodes.size === 0) break;
 
-    negativeDepthNodes.set(depthLevel, new SvelteSet(nextLevelNodes));
+    negativeDepthNodes.set(depthLevel, new Set(nextLevelNodes));
 
     // Move upward for next iteration
     currentLevelNodes = nextLevelNodes;

@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
 
-  import CactusTree from '$lib/components/CactusTree.svelte';
+  import Cactus from '$lib/components/CactusTree.svelte';
 
   /** @type {Array<{id: string, name: string, parent: string|null}>} */
   let nodes = [];
@@ -53,9 +53,10 @@
   const availableStyles = [
     { value: 'default.json', label: 'Default' },
     { value: 'minimal.json', label: 'Minimal' },
+    { value: 'magma.json', label: 'Magma' },
   ];
 
-  let selectedStyle = 'minimal.json';
+  let selectedStyle = 'default.json';
   let currentStyles = {};
 
   /** @param {string} styleName */
@@ -78,7 +79,6 @@
 
   onMount(() => {
     loadDataset(selectedDataset);
-    // load default style on mount
     loadStyle(selectedStyle);
   });
 </script>
@@ -235,7 +235,7 @@
     style:width={`${width}px`}
     style:height={`${height}px`}
   >
-    <CactusTree
+    <Cactus
       {width}
       {height}
       {nodes}

@@ -1,5 +1,5 @@
 /**
- * Label drawing utilities for CactusTree component
+ * Label drawing utilities for CactusTree
  *
  * - Use measured font metrics (via ctx.measureText and actualBoundingBox*)
  * - Style-driven values and per-depth overrides

@@ -1,5 +1,5 @@
 /**
- * Mouse and touch interaction handlers for CactusTree component
+ * Mouse and touch interaction handlers for CactusTree
  * Handles pan, zoom, hover, and other mouse/touch interactions
  */
 

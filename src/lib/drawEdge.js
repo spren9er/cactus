@@ -1,5 +1,5 @@
 /**
- * Edge drawing utilities for CactusTree component
+ * Edge drawing utilities for CactusTree
  *
  * Responsibilities:
  * - Build hierarchical paths for edge bundling

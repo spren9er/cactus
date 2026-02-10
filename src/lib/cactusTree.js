@@ -1,0 +1,618 @@
+/**
+ * CactusTree
+ *
+ * Encapsulates all options, styles, layout computation, canvas management,
+ * and mouse/touch interaction.
+ */
+
+import { setupCanvas } from './canvasUtils.js';
+import { drawNodes } from './drawNode.js';
+import * as drawEdge from './drawEdge.js';
+import { drawLabels, clearLabelLayoutCache } from './drawLabel.js';
+import { createMouseHandlers } from './mouseHandlers.js';
+import {
+  calculateLayout,
+  computeZoomLimitsFromNodes,
+  buildLookupMaps,
+} from './layoutUtils.js';
+
+// ── Default options & styles ────────────────────────────────────────────────
+
+const DEFAULT_OPTIONS = {
+  overlap: 0.5,
+  arcSpan: (5 * Math.PI) / 4,
+  sizeGrowthRate: 0.75,
+  orientation: Math.PI / 2,
+  zoom: 1.0,
+  numLabels: 20,
+  edgeOptions: {
+    bundlingStrength: 0.97,
+    strategy: 'hide',
+    muteOpacity: 0.2,
+  },
+};
+
+const DEFAULT_STYLE = {
+  node: {
+    fillColor: '#efefef',
+    fillOpacity: 1,
+    strokeColor: '#aaaaaa',
+    strokeOpacity: 1,
+    strokeWidth: 1,
+  },
+  edge: {
+    strokeColor: '#333333',
+    strokeOpacity: 0.1,
+    strokeWidth: 1,
+  },
+  label: {
+    inner: {
+      textColor: '#333333',
+      textOpacity: 1,
+      fontFamily: 'monospace',
+      fontWeight: 'normal',
+      minFontSize: 9,
+      maxFontSize: 14,
+    },
+    outer: {
+      textColor: '#333333',
+      textOpacity: 1,
+      fontFamily: 'monospace',
+      fontWeight: 'normal',
+      fontSize: 9,
+      padding: 1,
+      link: {
+        strokeColor: '#cccccc',
+        strokeOpacity: 1,
+        strokeWidth: 0.5,
+        padding: 0,
+        length: 5,
+      },
+    },
+  },
+  line: {
+    strokeColor: '#aaaaaa',
+    strokeOpacity: 1,
+    strokeWidth: 1,
+  },
+  highlight: {
+    node: {
+      fillColor: '#dedede',
+      fillOpacity: 1,
+      strokeColor: '#333333',
+      strokeOpacity: 1,
+      strokeWidth: 1,
+    },
+    edge: {
+      strokeColor: '#ea575a',
+      strokeOpacity: 0.2,
+      strokeWidth: 1,
+    },
+    label: {
+      inner: {
+        textColor: '#ea575a',
+        textOpacity: 1,
+        fontWeight: 'bold',
+      },
+      outer: {
+        textColor: '#333333',
+        textOpacity: 1,
+        fontWeight: 'normal',
+      },
+    },
+  },
+  depths: [
+    {
+      depth: -1,
+      node: { fillColor: '#333333', strokeColor: '#333333' },
+      label: {
+        inner: { textColor: '#efefef' },
+      },
+      highlight: {
+        node: { fillColor: '#ffbbb7', strokeColor: '#ea575a' },
+        label: {
+          inner: { strokeColor: '#ea575a' },
+          outer: { textColor: '#ea575a' },
+        },
+      },
+    },
+  ],
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** @param {any} userOptions */
+function mergeOptions(userOptions) {
+  return { ...DEFAULT_OPTIONS, ...userOptions };
+}
+
+/** @param {any} userStyles */
+function mergeStyles(userStyles) {
+  const s = userStyles || {};
+
+  /** @param {string} key */
+  const mergeGroup = (key) => {
+    const d = /** @type {Record<string, any>} */ (DEFAULT_STYLE);
+    const merged = { ...(d[key] || {}), ...(s[key] || {}) };
+    if (merged && typeof merged === 'object' && 'highlight' in merged)
+      delete merged.highlight;
+    return merged;
+  };
+
+  return {
+    node: mergeGroup('node'),
+    edge: mergeGroup('edge'),
+    label: mergeGroup('label'),
+    line: { ...(DEFAULT_STYLE.line || {}), ...(s.line || {}) },
+    highlight: {
+      node: {
+        ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.node) || {}),
+        ...((s.highlight && s.highlight.node) || {}),
+      },
+      edge: {
+        ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.edge) || {}),
+        ...((s.highlight && s.highlight.edge) || {}),
+      },
+      label: {
+        ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.label) || {}),
+        ...((s.highlight && s.highlight.label) || {}),
+      },
+    },
+    depths: s.depths ?? DEFAULT_STYLE.depths,
+  };
+}
+
+// ── CactusTree class ────────────────────────────────────────────────────────
+
+export class CactusTree {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {{ width?: number, height?: number, nodes?: any[], links?: any[], options?: any, styles?: any, pannable?: boolean, zoomable?: boolean }} config
+   */
+  constructor(canvas, config = {}) {
+    this.canvas = canvas;
+    this.ctx = null;
+
+    // Config
+    this.width = config.width ?? canvas.width;
+    this.height = config.height ?? canvas.height;
+    this.nodes = config.nodes ?? [];
+    this.links = config.links ?? [];
+    this.pannable = config.pannable ?? true;
+    this.zoomable = config.zoomable ?? true;
+
+    // Merged options / styles
+    this.mergedOptions = mergeOptions(config.options);
+    this.mergedStyle = mergeStyles(config.styles);
+
+    // Layout state
+    /** @type {any[]} */
+    this.renderedNodes = [];
+    this.nodeIdToRenderedNodeMap = new Map();
+    this.leafNodes = new Set();
+    this.negativeDepthNodes = new Map();
+    this.depthStyleCache = new Map();
+    this.hierarchicalPathCache = new Map();
+    this.parentToChildrenNodeMap = new Map();
+
+    // Interaction state
+    /** @type {string|null} */
+    this.hoveredNodeId = null;
+    this.panX = 0;
+    this.panY = 0;
+    this.currentZoom = this.mergedOptions.zoom;
+    this.isDragging = false;
+    this.lastMouseX = 0;
+    this.lastMouseY = 0;
+
+    // Touch state
+    /** @type {any[]} */
+    this.touches = [];
+    this.lastTouchDistance = 0;
+
+    // Zoom limits
+    this.minZoomLimit = 0.1;
+    this.maxZoomLimit = 10;
+
+    // Animation frame id
+    this._animationFrameId = null;
+
+    // Event handler refs (for cleanup)
+    this._boundHandlers = null;
+
+    // Initial setup
+    this._setupMouseHandlers();
+    this._scheduleRender();
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────
+
+  /**
+   * Update configuration. Any subset of the config properties may be provided.
+   * Triggers a full re-render.
+   * @param {{ width?: number, height?: number, nodes?: any[], links?: any[], options?: any, styles?: any, pannable?: boolean, zoomable?: boolean }} config
+   */
+  update(config) {
+    if (!config) return;
+
+    let needsHandlerRebind = false;
+
+    if (config.width !== undefined) this.width = config.width;
+    if (config.height !== undefined) this.height = config.height;
+    if (config.nodes !== undefined) this.nodes = config.nodes;
+    if (config.links !== undefined) this.links = config.links;
+    if (config.options !== undefined)
+      this.mergedOptions = mergeOptions(config.options);
+    if (config.styles !== undefined)
+      this.mergedStyle = mergeStyles(config.styles);
+    if (config.pannable !== undefined) {
+      this.pannable = config.pannable;
+      needsHandlerRebind = true;
+    }
+    if (config.zoomable !== undefined) {
+      this.zoomable = config.zoomable;
+      needsHandlerRebind = true;
+    }
+
+    if (needsHandlerRebind) {
+      this._removeMouseHandlers();
+      this._setupMouseHandlers();
+    }
+
+    this._scheduleRender();
+  }
+
+  /**
+   * Force a full render (layout + draw).
+   */
+  render() {
+    this._render();
+  }
+
+  /**
+   * Force a lightweight redraw (no layout recalculation).
+   */
+  draw() {
+    this._draw();
+  }
+
+  /**
+   * Clean up event listeners and cancel pending animation frames.
+   */
+  destroy() {
+    this._removeMouseHandlers();
+
+    if (this._animationFrameId) {
+      cancelAnimationFrame(this._animationFrameId);
+      this._animationFrameId = null;
+    }
+  }
+
+  // ── Internal: layout & drawing ──────────────────────────────────────────
+
+  _calculateLayoutAndMaps() {
+    clearLabelLayoutCache();
+
+    if (!this.nodes?.length) {
+      this.renderedNodes = [];
+      this.nodeIdToRenderedNodeMap = new Map();
+      this.leafNodes = new Set();
+      this.negativeDepthNodes = new Map();
+      this.depthStyleCache = new Map();
+      this.hierarchicalPathCache = new Map();
+      this.parentToChildrenNodeMap = new Map();
+      return;
+    }
+
+    const layoutZoom = this.mergedOptions.zoom * this.currentZoom;
+    this.renderedNodes = calculateLayout(
+      this.width,
+      this.height,
+      layoutZoom,
+      this.nodes,
+      this.mergedOptions,
+    );
+
+    const lookupMaps = /** @type {any} */ (
+      buildLookupMaps(this.renderedNodes, this.mergedStyle)
+    );
+
+    this.nodeIdToRenderedNodeMap = lookupMaps.nodeIdToRenderedNodeMap;
+    this.leafNodes = lookupMaps.leafNodes;
+    this.negativeDepthNodes = lookupMaps.negativeDepthNodes;
+    this.depthStyleCache = lookupMaps.depthStyleCache;
+    this.hierarchicalPathCache = lookupMaps.hierarchicalPathCache;
+    this.parentToChildrenNodeMap = lookupMaps.parentToChildrenNodeMap;
+
+    if (this.renderedNodes?.length) {
+      const limits = computeZoomLimitsFromNodes(
+        this.width,
+        this.height,
+        this.renderedNodes,
+        this.currentZoom,
+      );
+      this.minZoomLimit = limits.minZoomLimit;
+      this.maxZoomLimit = limits.maxZoomLimit;
+
+      if (
+        this.currentZoom < this.minZoomLimit ||
+        this.currentZoom > this.maxZoomLimit
+      ) {
+        this.currentZoom = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+      }
+    }
+  }
+
+  _draw() {
+    if (!this.canvas || !this.ctx) return;
+
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.save();
+    this.ctx.translate(this.panX, this.panY);
+
+    // Draw connecting parent->child lines (only when overlap < 0)
+    drawEdge.drawConnectingLines(
+      this.ctx,
+      this.renderedNodes,
+      this.parentToChildrenNodeMap,
+      this.mergedStyle,
+      this.depthStyleCache,
+      this.mergedOptions.overlap,
+      this.negativeDepthNodes,
+    );
+
+    // Compute visible edge node ids
+    const edgeNodeIds = drawEdge.computeVisibleEdgeNodeIds(
+      this.links,
+      this.nodeIdToRenderedNodeMap,
+      this.hoveredNodeId,
+    );
+
+    const edgeNodeIdSet = new Set();
+    if (edgeNodeIds && edgeNodeIds.length) {
+      for (const id of edgeNodeIds) {
+        edgeNodeIdSet.add(id);
+      }
+    }
+
+    // Node highlight set
+    const nodeHighlightedIds = (() => {
+      const s = new Set();
+      if (!this.hoveredNodeId) return s;
+      s.add(this.hoveredNodeId);
+
+      for (const link of this.links || []) {
+        if (
+          link.source === this.hoveredNodeId &&
+          edgeNodeIdSet.has(link.target)
+        ) {
+          s.add(link.target);
+        } else if (
+          link.target === this.hoveredNodeId &&
+          edgeNodeIdSet.has(link.source)
+        ) {
+          s.add(link.source);
+        }
+      }
+      return s;
+    })();
+
+    // Edge highlight set
+    const edgeHighlightedNodeIds = (() => {
+      if (!this.hoveredNodeId) return null;
+      const s = new Set();
+      s.add(this.hoveredNodeId);
+      return s;
+    })();
+
+    // Draw non-leaf nodes
+    drawNodes(
+      this.ctx,
+      this.renderedNodes,
+      this.leafNodes,
+      this.hoveredNodeId,
+      this.mergedStyle,
+      this.depthStyleCache,
+      this.negativeDepthNodes,
+      nodeHighlightedIds,
+      'nonLeaf',
+    );
+
+    // Draw edges
+    drawEdge.drawEdges(
+      this.ctx,
+      this.links,
+      this.nodeIdToRenderedNodeMap,
+      this.hierarchicalPathCache,
+      this.mergedStyle,
+      this.hoveredNodeId,
+      edgeHighlightedNodeIds,
+      Number(this.mergedOptions?.edgeOptions?.bundlingStrength ?? 0.97),
+      this.mergedOptions?.edgeOptions ?? {},
+      this.depthStyleCache,
+      this.negativeDepthNodes,
+    );
+
+    // Draw leaf nodes (on top of edges)
+    drawNodes(
+      this.ctx,
+      this.renderedNodes,
+      this.leafNodes,
+      this.hoveredNodeId,
+      this.mergedStyle,
+      this.depthStyleCache,
+      this.negativeDepthNodes,
+      nodeHighlightedIds,
+      'leaf',
+    );
+
+    // Draw labels
+    drawLabels(
+      this.ctx,
+      this.renderedNodes,
+      this.leafNodes,
+      this.hoveredNodeId,
+      nodeHighlightedIds,
+      this.mergedStyle,
+      this.depthStyleCache,
+      this.negativeDepthNodes,
+      this.mergedOptions.numLabels,
+      this.panX,
+      this.panY,
+    );
+
+    this.ctx.restore();
+  }
+
+  _render() {
+    if (!this.canvas || !this.nodes?.length) return;
+
+    this.ctx = setupCanvas(this.canvas, this.width, this.height);
+    this._calculateLayoutAndMaps();
+    this._draw();
+  }
+
+  _scheduleRender() {
+    if (this._animationFrameId) {
+      cancelAnimationFrame(this._animationFrameId);
+    }
+
+    this._animationFrameId = requestAnimationFrame(() => {
+      this._render();
+      this._animationFrameId = null;
+    });
+  }
+
+  _scheduleDraw() {
+    if (this._animationFrameId) {
+      cancelAnimationFrame(this._animationFrameId);
+    }
+
+    this._animationFrameId = requestAnimationFrame(() => {
+      if (!this.canvas || !this.ctx || !this.renderedNodes.length) return;
+      this._draw();
+      this._animationFrameId = null;
+    });
+  }
+
+  // ── Internal: event handling ────────────────────────────────────────────
+
+  _setupMouseHandlers() {
+    const self = this;
+
+    const mutableState = {
+      get canvas() {
+        return self.canvas;
+      },
+      get hoveredNodeId() {
+        return self.hoveredNodeId;
+      },
+      set hoveredNodeId(value) {
+        self.hoveredNodeId = value;
+      },
+      get renderedNodes() {
+        return self.renderedNodes;
+      },
+      get panX() {
+        return self.panX;
+      },
+      set panX(value) {
+        self.panX = value;
+      },
+      get panY() {
+        return self.panY;
+      },
+      set panY(value) {
+        self.panY = value;
+      },
+      get currentZoom() {
+        return self.currentZoom;
+      },
+      set currentZoom(value) {
+        self.currentZoom = value;
+      },
+      get isDragging() {
+        return self.isDragging;
+      },
+      set isDragging(value) {
+        self.isDragging = value;
+      },
+      get lastMouseX() {
+        return self.lastMouseX;
+      },
+      set lastMouseX(value) {
+        self.lastMouseX = value;
+      },
+      get lastMouseY() {
+        return self.lastMouseY;
+      },
+      set lastMouseY(value) {
+        self.lastMouseY = value;
+      },
+      get minZoomLimit() {
+        return self.minZoomLimit;
+      },
+      get maxZoomLimit() {
+        return self.maxZoomLimit;
+      },
+      get touches() {
+        return self.touches;
+      },
+      set touches(value) {
+        self.touches = value;
+      },
+      get lastTouchDistance() {
+        return self.lastTouchDistance;
+      },
+      set lastTouchDistance(value) {
+        self.lastTouchDistance = value;
+      },
+      pannable: self.pannable,
+      zoomable: self.zoomable,
+    };
+
+    const handlers = createMouseHandlers(
+      mutableState,
+      this.width,
+      this.height,
+      () => this._scheduleRender(),
+    );
+
+    this._boundHandlers = handlers;
+    this._mutableState = mutableState;
+
+    this.canvas.addEventListener('mousemove', handlers.onMouseMove);
+    this.canvas.addEventListener('mousedown', handlers.onMouseDown);
+    this.canvas.addEventListener('mouseup', handlers.onMouseUp);
+    this.canvas.addEventListener('mouseleave', handlers.onMouseLeave);
+    this.canvas.addEventListener('wheel', handlers.onWheel, { passive: false });
+    this.canvas.addEventListener('touchstart', handlers.onTouchStart, {
+      passive: false,
+    });
+    this.canvas.addEventListener('touchmove', handlers.onTouchMove, {
+      passive: false,
+    });
+    this.canvas.addEventListener('touchend', handlers.onTouchEnd, {
+      passive: false,
+    });
+  }
+
+  _removeMouseHandlers() {
+    if (!this._boundHandlers) return;
+
+    const h = this._boundHandlers;
+    this.canvas.removeEventListener('mousemove', h.onMouseMove);
+    this.canvas.removeEventListener('mousedown', h.onMouseDown);
+    this.canvas.removeEventListener('mouseup', h.onMouseUp);
+    this.canvas.removeEventListener('mouseleave', h.onMouseLeave);
+    this.canvas.removeEventListener('wheel', h.onWheel);
+    this.canvas.removeEventListener('touchstart', h.onTouchStart);
+    this.canvas.removeEventListener('touchmove', h.onTouchMove);
+    this.canvas.removeEventListener('touchend', h.onTouchEnd);
+
+    this._boundHandlers = null;
+    this._mutableState = null;
+  }
+}

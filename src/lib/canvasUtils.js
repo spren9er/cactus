@@ -1,5 +1,5 @@
 /**
- * Canvas utilities for CactusTree component
+ * Canvas utilities for CactusTree
  * Handles canvas setup, context management, and basic drawing operations
  */
 
