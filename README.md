@@ -1,6 +1,6 @@
 # cactuz
 
-A modern Svelte library for visualizing hierarchical data structures using the *CactusTree* algorithm with hierarchical edge bundling.
+A JavaScript library for visualizing hierarchical data structures using the *CactusTree* algorithm with hierarchical edge bundling.
 
 <div align="center">
   <img src="https://github.com/spren9er/cactuz/blob/main/docs/images/cactus_tree_simple.png?raw=true" alt="cactus-tree-simple" width="75%" height="75%">
@@ -8,10 +8,11 @@ A modern Svelte library for visualizing hierarchical data structures using the *
 
 ## Overview
 
-The library **cactuz** is based on the research paper *[CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling](https://ieeexplore.ieee.org/document/8031596)* by Tommy Dang and Angus Forbes. This implementation provides both a ready-to-use Svelte component and a standalone layout algorithm for creating interactive tree visualizations.
+The library **cactuz** is based on the research paper *[CactusTree: A Tree Drawing Approach for Hierarchical Edge Bundling](https://ieeexplore.ieee.org/document/8031596)* by Tommy Dang and Angus Forbes. It provides a framework-agnostic `CactusTree` class for rendering interactive tree visualizations on an HTML canvas, as well as a low-level `CactusLayout` class for computing the layout independently.
 
 ## Features
 
+- **Framework-Agnostic** - Works with any JavaScript framework or plain HTML
 - **Fractal-based Tree Layout** - Recursively stacks child nodes on parent nodes
 - **Hierarchical Edge Bundling** - Groups related connections for cleaner visualization
 - **Highly Customizable** - Extensive styling and behavior options
@@ -26,33 +27,51 @@ npm install cactuz
 
 ## Quick Start
 
-```svelte
-<script>
-  import { CactusTree } from 'cactuz';
+```javascript
+import { CactusTree } from 'cactuz';
 
-  const nodes = [
-    { id: 'root', name: 'Root', parent: null },
-    { id: 'child1', name: 'Child 1', parent: 'root' },
-    { id: 'child2', name: 'Child 2', parent: 'root' },
-    { id: 'leaf1', name: 'Leaf 1', parent: 'child1' },
-    { id: 'leaf2', name: 'Leaf 2', parent: 'child1' },
-  ];
+const canvas = document.getElementById('my-canvas');
 
-  const links = [{ source: 'leaf1', target: 'leaf2' }];
-</script>
+const nodes = [
+  { id: 'root', name: 'Root', parent: null },
+  { id: 'child1', name: 'Child 1', parent: 'root' },
+  { id: 'child2', name: 'Child 2', parent: 'root' },
+  { id: 'leaf1', name: 'Leaf 1', parent: 'child1' },
+  { id: 'leaf2', name: 'Leaf 2', parent: 'child1' },
+];
 
-<CactusTree width={800} height={600} {nodes} {links} />
+const links = [{ source: 'leaf1', target: 'leaf2' }];
+
+const tree = new CactusTree(canvas, {
+  width: 800,
+  height: 600,
+  nodes,
+  links,
+});
 ```
 
 See [cactuz.spren9er.de](https://cactuz.spren9er.de) for a live demo and interactive playground.
 
 ## API Reference
 
-### CactusTree Component
+### CactusTree
 
-#### Props
+The `CactusTree` class manages canvas setup, layout computation, rendering, and mouse/touch interactions.
 
-| Prop       | Type      | Required | Default | Description                        |
+#### Constructor
+
+```javascript
+new CactusTree(canvas, config)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `canvas` | `HTMLCanvasElement` | The canvas element to render into |
+| `config` | `object` | Configuration (see below) |
+
+#### Config
+
+| Property   | Type      | Required | Default | Description                        |
 | ---------- | --------- |:--------:|:-------:| ---------------------------------- |
 | `width`    | `number`  | yes      | -       | Canvas width in pixels             |
 | `height`   | `number`  | yes      | -       | Canvas height in pixels            |
@@ -62,6 +81,34 @@ See [cactuz.spren9er.de](https://cactuz.spren9er.de) for a live demo and interac
 | `styles`   | `Styles`  | no       | `{}`    | Visual styling configuration       |
 | `pannable` | `boolean` | no       | `true`  | Enable pan interaction             |
 | `zoomable` | `boolean` | no       | `true`  | Enable zoom interaction            |
+
+#### Methods
+
+##### `update(config)`
+
+Update any subset of the config properties. Triggers a full re-render.
+
+```javascript
+tree.update({ nodes: newNodes, links: newLinks });
+tree.update({ options: { zoom: 1.5 } });
+tree.update({ styles: myStyles });
+```
+
+##### `render()`
+
+Force a full render (layout recalculation + draw).
+
+##### `draw()`
+
+Force a lightweight redraw without layout recalculation.
+
+##### `destroy()`
+
+Remove event listeners and cancel pending animation frames. Call this when removing the canvas from the DOM.
+
+```javascript
+tree.destroy();
+```
 
 #### Node Structure
 
@@ -93,7 +140,7 @@ interface Options {
   orientation?: number;       // Root orientation in radians (default: π/2)
   zoom?: number;              // Layout zoom factor (default: 1.0)
   numLabels?: number;         // Number of labels (default: 20)
-  edgeOptions?: EdgeOptions;  // Edge-specific interactive settings (bundling, hover behavior)
+  edgeOptions?: EdgeOptions;  // Edge-specific interactive settings
 }
 
 interface EdgeOptions {
@@ -107,7 +154,7 @@ interface EdgeOptions {
 
 #### Styles
 
-The `styles` prop is a nested object with optional groups and an optional `depths` array containing per-depth overrides. Per-depth overrides take precedence over global group values.
+The `styles` config is a nested object with optional groups and an optional `depths` array containing per-depth overrides. Per-depth overrides take precedence over global group values.
 
 ```typescript
 interface Styles {
@@ -265,20 +312,22 @@ interface DepthStyle {
 }
 ```
 
-### CactusLayout Class
+### CactusLayout
 
-For non-Svelte usage you can use the layout algorithm directly.
+For use cases where you only need the layout computation (e.g. rendering with a different graphics library), the `CactusLayout` class provides the positioning algorithm without any canvas or interaction management.
 
 #### Constructor
 
-```typescript
+```javascript
+import { CactusLayout } from 'cactuz';
+
 new CactusLayout(
-  width: number,           // Target width
-  height: number,          // Target height
-  zoom?: number,           // Zoom factor (default: 1)
-  overlap?: number,        // Overlap factor (default: 0)
-  arcSpan?: number,        // Arc span (default: π)
-  sizeGrowthRate?: number  // Size growth rate (default: 0.75)
+  width,           // Target width
+  height,          // Target height
+  zoom,            // Zoom factor (default: 1)
+  overlap,         // Overlap factor (default: 0)
+  arcSpan,         // Arc span in radians (default: π)
+  sizeGrowthRate   // Size growth rate (default: 0.75)
 )
 ```
 
@@ -290,18 +339,12 @@ Computes the layout and returns positioned node data.
 
 **Parameters:**
 
-- `nodes`: Array of node objects or flat node array
-- `startX`: Starting X coordinate (usually width/2)
-- `startY`: Starting Y coordinate (usually height/2)
-- `startAngle`: Starting angle in radians (default: π/2)
+- `nodes`: Array of node objects (flat array with `id`, `name`, `parent`)
+- `startX`: Starting X coordinate (usually `width / 2`)
+- `startY`: Starting Y coordinate (usually `height / 2`)
+- `startAngle`: Starting angle in radians (default: `Math.PI / 2`)
 
 **Returns:**
-
-```typescript
-NodeData[] // Array of positioned nodes
-```
-
-##### `NodeData Structure`
 
 ```typescript
 interface NodeData {
@@ -315,32 +358,31 @@ interface NodeData {
 }
 ```
 
+**Example:**
+
 ```javascript
 import { CactusLayout } from 'cactuz';
 
-const layout = new CactusLayout(
-  800,       // width
-  600,       // height
-  1.0,       // zoom
-  0.5,       // overlap
-  Math.PI,   // arcSpan
-  0.75,      // sizeGrowthRate
-);
+const layout = new CactusLayout(800, 600, 1.0, 0.5, Math.PI, 0.75);
+const nodeData = layout.render(nodes, 400, 300, Math.PI / 2);
 
-const nodeData = layout.render(nodes, 400, 300, -Math.PI / 2);
+// Use nodeData to render with your own graphics library
+for (const nd of nodeData) {
+  console.log(nd.x, nd.y, nd.radius, nd.node.name);
+}
 ```
 
 ## Advanced Usage
 
-### Global and Depth-based Styling Example
+### Styling Example
 
-This example demonstrates styles and per-depth overrides. It shows a global style for general appearance, then customizes roots and leaves via `depths`.
-
-```svelte
-<script>
-  import { CactusTree } from 'cactuz';
-
-  const styles = {
+```javascript
+const tree = new CactusTree(canvas, {
+  width: 800,
+  height: 600,
+  nodes,
+  links,
+  styles: {
     node: {
       fillColor: '#f0f8ff',
       strokeColor: '#4682b4',
@@ -354,30 +396,20 @@ This example demonstrates styles and per-depth overrides. It shows a global styl
     label: {
       inner: {
         textColor: '#2c3e50',
-        textOpacity: 1,
         fontFamily: 'Arial, sans-serif',
         minFontSize: 8,
         maxFontSize: 16,
       },
       outer: {
         textColor: '#00ff00',
-        textOpacity: 1,
         fontFamily: 'Arial, sans-serif',
-        minFontSize: 8,
-        maxFontSize: 16,
         padding: 2,
         link: {
           strokeColor: '#aaaaaa',
-          strokeOpacity: 1,
           strokeWidth: 0.6,
           padding: 1,
-        }        
-      }
-    },
-    line: {
-      strokeColor: '#cccccc',
-      strokeOpacity: 1,
-      strokeWidth: 1,
+        },
+      },
     },
     depths: [
       {
@@ -389,39 +421,57 @@ This example demonstrates styles and per-depth overrides. It shows a global styl
         depth: -1,
         node: { fillColor: '#e74c3c', strokeColor: '#c0392b' },
         label: {
-          inner: {
-            textColor: '#ffffff'
-          },
-          outer: {
-            fontWeight: 'bold'
-          }
+          inner: { textColor: '#ffffff' },
+          outer: { fontWeight: 'bold' },
         },
       },
     ],
-  };
-</script>
-
-<CactusTree width={800} height={600} {nodes} {links} styles={styles} />
+  },
+});
 ```
 
-### Negative Overlap and Link Filtering
+### Negative Overlap
 
-```svelte
-<CactusTree
-  width={800}
-  height={600}
-  {nodes}
-  options={{
+```javascript
+const tree = new CactusTree(canvas, {
+  width: 800,
+  height: 600,
+  nodes,
+  options: {
     overlap: -1.1,                  // Gaps between nodes
     arcSpan: 2 * Math.PI,           // Full circle layout (radians)
     orientation: (7 / 9) * Math.PI, // Root orientation (radians)
-    zoom: 0.7
-  }}
-/>
+    zoom: 0.7,
+  },
+});
 ```
 
 <div align="center">
   <img src="https://github.com/spren9er/cactuz/blob/main/docs/images/cactus_tree_advanced.png?raw=true" alt="cactus-tree-advanced" width="75%" height="75%">
 </div>
 
-For a negative overlap parameter, nodes are connected by links. Also, when hovering over leaf nodes, only the links connected to that node are shown, while all other links are hidden. This allows for better readability in dense visualizations.
+For a negative overlap parameter, nodes are connected by links. When hovering over leaf nodes, only the links connected to that node are shown, while all other links are hidden. This allows for better readability in dense visualizations.
+
+## Svelte Component
+
+For Svelte applications, **cactuz** also exports a ready-to-use `Cactus` Svelte component that wraps the core class with reactive prop handling.
+
+```svelte
+<script>
+  import { Cactus } from 'cactuz';
+
+  const nodes = [
+    { id: 'root', name: 'Root', parent: null },
+    { id: 'child1', name: 'Child 1', parent: 'root' },
+    { id: 'child2', name: 'Child 2', parent: 'root' },
+    { id: 'leaf1', name: 'Leaf 1', parent: 'child1' },
+    { id: 'leaf2', name: 'Leaf 2', parent: 'child1' },
+  ];
+
+  const links = [{ source: 'leaf1', target: 'leaf2' }];
+</script>
+
+<Cactus width={800} height={600} {nodes} {links} />
+```
+
+The component accepts the same props as the `CactusTree` config: `width`, `height`, `nodes`, `links`, `options`, `styles`, `pannable`, and `zoomable`. It automatically re-renders when any prop changes.
