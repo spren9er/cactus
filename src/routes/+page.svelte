@@ -52,7 +52,6 @@
   const availableStyles = [
     { value: 'default.json', label: 'Default' },
     { value: 'minimal.json', label: 'Minimal' },
-    { value: 'magma.json', label: 'Magma' },
   ];
 
   let selectedStyle = 'default.json';
