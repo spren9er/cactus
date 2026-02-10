@@ -67,7 +67,6 @@
         return;
       }
       currentStyles = await res.json();
-      console.log(`Loaded style: ${styleName}`);
     } catch {
       currentStyles = {};
     }

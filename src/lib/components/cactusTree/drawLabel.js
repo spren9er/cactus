@@ -1159,19 +1159,6 @@ export function computeLabelLayout(
       ...baseHighlightMerged,
       __hasDepthHighlight: hasDepthHighlight,
     };
-    if (
-      typeof hoveredNodeId !== 'undefined' &&
-      hoveredNodeId !== null &&
-      node.id === hoveredNodeId &&
-      typeof console !== 'undefined' &&
-      typeof console.debug === 'function'
-    ) {
-      console.debug(
-        '[computeLabelLayout] highlightStyle for hovered node:',
-        node.id,
-        nodeData.highlightStyle,
-      );
-    }
   });
 
   const { labels, links } = calculateLabelPositions(

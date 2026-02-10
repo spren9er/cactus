@@ -1010,7 +1010,7 @@ export class LabelPositioner {
       this.width,
       this.height,
       {
-        xwLeaderLineLength: 0.05,
+        wLeaderLineLength: 0.05,
         wLeaderLineIntersection: 1.0,
         wLabelLabelOverlap: 30.0,
         wLabelAnchorOverlap: 30.0,
