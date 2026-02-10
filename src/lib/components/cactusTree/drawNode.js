@@ -76,7 +76,8 @@ export function readNestedStyleProp(
 }
 
 /**
- * Finds the applicable depth style for a node (unchanged behavior, but depthStyle now contains nested groups)
+ * Resolve the applicable depth style for a node.
+ * Checks positive depth cache first, then negative depths (which override positive if matched).
  * @param {number} depth
  * @param {string} nodeId
  * @param {any} mergedStyle
@@ -84,7 +85,7 @@ export function readNestedStyleProp(
  * @param {Map<any, any>} negativeDepthNodes
  * @returns {any} Depth style object or null
  */
-export function getDepthStyle(
+export function resolveDepthStyle(
   depth,
   nodeId,
   mergedStyle,
@@ -130,7 +131,7 @@ export function calculateNodeStyle(
   negativeDepthNodes,
   highlightedNodeIds,
 ) {
-  const depthStyle = getDepthStyle(
+  const depthStyle = resolveDepthStyle(
     depth,
     node.id,
     mergedStyle,
@@ -182,9 +183,6 @@ export function calculateNodeStyle(
     defaultStrokeOpacity,
   );
 
-  // Highlight lookup is performed directly in `readNodeHighlightProp`.
-
-  // Check if this node is hovered or is associated with the hovered node (via highlightedNodeIds)
   const isDirectlyHovered = hoveredNodeId === node.id;
   const isLinkedHovered =
     highlightedNodeIds && typeof highlightedNodeIds.has === 'function'
@@ -192,24 +190,14 @@ export function calculateNodeStyle(
       : false;
   const isHovered = isDirectlyHovered || isLinkedHovered;
 
-  // If hovered (directly or via links), use highlight styles if provided; otherwise fall back to node styles
-  // Highlight properties are nested under `node.highlight`
-  // Helper: read highlight properties considering depth-specific, top-level highlight.node, and legacy node.highlight locations.
   /**
-   * Read a highlight property for a node, considering depth-specific overrides and
-   * both the top-level `mergedStyle.highlight.node` and legacy `mergedStyle.node.highlight`.
-   *
-   * @param {string} prop - Property name inside the highlight group (e.g., 'fillColor')
-   * @param {*} [defaultValue] - Value to return if the property is not found
+   * Read a node highlight property with depth-specific override fallback.
+   * Precedence: depthStyle.highlight.node > depthStyle.node.highlight > mergedStyle.highlight.node > mergedStyle.node.highlight
+   * @param {string} prop
+   * @param {*} [defaultValue]
    * @returns {*}
    */
   function readNodeHighlightProp(prop, defaultValue) {
-    // Accept both legacy (`depthStyle.node.highlight`) and newer (`depthStyle.highlight.node`)
-    // placements for depth-specific highlight overrides. Precedence:
-    // 1) depthStyle.highlight.node
-    // 2) depthStyle.node.highlight (legacy)
-    // 3) mergedStyle.highlight.node
-    // 4) mergedStyle.node.highlight (legacy)
     if (
       depthStyle &&
       depthStyle.highlight &&
@@ -269,11 +257,6 @@ export function calculateNodeStyle(
       ? highlightStrokeOpacity
       : currentStrokeOpacity;
 
-  // Allow highlight to explicitly override the node stroke width when provided.
-  // Historically we prevented highlights from increasing the node stroke width
-  // (favoring halos for emphasis). In some use-cases consumers want the highlight
-  // to be able to both increase or decrease the stroke width. Honor explicit
-  // highlight strokeWidth when present.
   const finalStrokeWidth =
     isHovered && highlightStrokeWidth !== undefined
       ? highlightStrokeWidth
@@ -319,7 +302,6 @@ export function drawNode(
 ) {
   if (!ctx) return false;
 
-  // Skip nodes with very small screen radius for performance
   if (radius < 1) return false;
 
   const style = /** @type {any} */ (
@@ -334,11 +316,9 @@ export function drawNode(
     )
   );
 
-  // Create circle path
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
 
-  // Fill and stroke optimizations: prefer a single style set when possible to reduce canvas state churn
   const fillNeeded = style.fill !== 'none' && (style.fillOpacity ?? 1) > 0;
   const strokeNeeded =
     style.stroke !== 'none' &&
@@ -350,7 +330,6 @@ export function drawNode(
     strokeNeeded &&
     (style.fillOpacity ?? 1) === (style.strokeOpacity ?? 1)
   ) {
-    // Both fill and stroke share same opacity -> set styles once to minimize canvas property updates.
     setCanvasStyles(ctx, {
       fillStyle: style.fill,
       strokeStyle: style.stroke,
@@ -377,7 +356,6 @@ export function drawNode(
     }
   }
 
-  // Reset alpha if changed
   if (ctx.globalAlpha !== 1.0) {
     ctx.globalAlpha = 1.0;
   }
@@ -386,22 +364,7 @@ export function drawNode(
 }
 
 /**
- * Draws all nodes in the renderedNodes array
- * @param {CanvasRenderingContext2D} ctx
- * @param {Array<any>} renderedNodes
- * @param {string|null} hoveredNodeId
- * @param {any} mergedStyle
- * @param {Map<any, any>} depthStyleCache
- * @param {Map<any, any>} negativeDepthNodes
- * @param {Set<string>|null} highlightedNodeIds - Set of node ids considered highlighted due to link association (may be null)
- * @returns {{ rendered: number, filtered: number }}
- */
-/**
  * Draws all nodes in the renderedNodes array.
- *
- * Notes:
- * - `leafNodes` may be a SvelteSet or any Set-like object; we treat it as Set-like and test via `.has`.
- * - `highlightedNodeIds` may be a SvelteSet or native Set; we only use the presence test `.has`.
  *
  * @param {CanvasRenderingContext2D} ctx
  * @param {Array<any>} renderedNodes
@@ -425,34 +388,22 @@ export function drawNodes(
   highlightedNodeIds,
   mode = 'all',
 ) {
-  // mode: 'all' | 'nonLeaf' | 'leaf'
   if (!ctx || !renderedNodes || !renderedNodes.length) {
     return { rendered: 0, filtered: 0 };
   }
 
-  // Start simple local metrics so we can surface them to the page for profiling.
-  const metricsEnabled = typeof window !== 'undefined';
-  const start = metricsEnabled ? performance.now() : 0;
-
   let renderedCount = 0;
   let filteredCount = 0;
 
-  // Helper used to decide whether the current call should draw this node depending on mode.
   /** @param {{id:string}} node */
   function shouldDrawNode(node) {
     if (!leafNodes) return true;
     try {
-      if (mode === 'nonLeaf') {
-        return !leafNodes.has(node.id);
-      } else if (mode === 'leaf') {
-        return leafNodes.has(node.id);
-      }
+      if (mode === 'nonLeaf') return !leafNodes.has(node.id);
+      if (mode === 'leaf') return leafNodes.has(node.id);
     } catch {
-      // leafNodes may not be a proper Set-like structure in some call-sites;
-      // fall back to drawing everything to avoid accidentally hiding nodes.
       return true;
     }
-    // default: draw everything
     return true;
   }
 
@@ -478,51 +429,6 @@ export function drawNodes(
 
     if (wasRendered) renderedCount++;
     else filteredCount++;
-  }
-
-  const totalMs = metricsEnabled ? performance.now() - start : 0;
-
-  // Store/update lightweight metrics on window for external inspection.
-  if (metricsEnabled) {
-    try {
-      // Initialize container if missing
-      const w = /** @type {any} */ (window);
-      if (!w.__CACTUS_TREE_METRICS__) {
-        w.__CACTUS_TREE_METRICS__ = {
-          drawNodes: {
-            calls: 0,
-            totalMs: 0,
-            lastMs: 0,
-            nodesRendered: 0,
-            nodesFiltered: 0,
-            lastCounts: null,
-          },
-        };
-      } else if (!w.__CACTUS_TREE_METRICS__.drawNodes) {
-        w.__CACTUS_TREE_METRICS__.drawNodes = {
-          calls: 0,
-          totalMs: 0,
-          lastMs: 0,
-          nodesRendered: 0,
-          nodesFiltered: 0,
-          lastCounts: null,
-        };
-      }
-
-      const d = w.__CACTUS_TREE_METRICS__.drawNodes;
-      d.calls = (d.calls || 0) + 1;
-      d.totalMs = (d.totalMs || 0) + totalMs;
-      d.lastMs = totalMs;
-      d.nodesRendered = (d.nodesRendered || 0) + renderedCount;
-      d.nodesFiltered = (d.nodesFiltered || 0) + filteredCount;
-      d.lastCounts = {
-        rendered: renderedCount,
-        filtered: filteredCount,
-        total: renderedNodes.length,
-      };
-    } catch {
-      // Ignore metric errors to avoid impacting rendering.
-    }
   }
 
   return { rendered: renderedCount, filtered: filteredCount };

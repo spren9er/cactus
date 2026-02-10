@@ -18,6 +18,7 @@
  */
 
 import { setCanvasStyles } from './canvasUtils.js';
+import { resolveDepthStyle } from './drawNode.js';
 import { calculateLabelPositions } from './labelPositions.js';
 
 // Label layout cache — avoids expensive simulated annealing on every frame
@@ -141,27 +142,14 @@ export function getLabelStyle(
   depthStyleCache,
   negativeDepthNodes,
 ) {
-  // Apply positive depth first
-  let depthStyle = null;
-  if (depthStyleCache && depthStyleCache.has(depth)) {
-    depthStyle = depthStyleCache.get(depth);
-  }
+  const depthStyle = resolveDepthStyle(
+    depth,
+    nodeId,
+    mergedStyle,
+    depthStyleCache,
+    negativeDepthNodes,
+  );
 
-  // Then apply negative depths (override positive if matched)
-  if (mergedStyle?.depths) {
-    for (const ds of mergedStyle.depths) {
-      if (ds.depth < 0) {
-        const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
-        if (nodesAtThisNegativeDepth && nodesAtThisNegativeDepth.has(nodeId)) {
-          depthStyle = ds;
-          break;
-        }
-      }
-    }
-  }
-
-  // Support new label schema with `inner` and `outer` groups while remaining
-  // backwards-compatible with older flat label definitions.
   const globalLabel = mergedStyle?.label ?? {};
   const labelFromDepth = depthStyle?.label ?? null;
 
@@ -170,16 +158,13 @@ export function getLabelStyle(
   const depthInner = labelFromDepth?.inner ?? {};
   const depthOuter = labelFromDepth?.outer ?? {};
 
-  // Top-level visual defaults (prefer inner settings, then outer, then any flat legacy keys)
   const textColor =
     depthInner?.textColor ??
     depthOuter?.textColor ??
-    // accept shorthand strokeColor on inner/outer as a fallback for text color
     depthInner?.strokeColor ??
     depthOuter?.strokeColor ??
     globalInner?.textColor ??
     globalOuter?.textColor ??
-    // accept global-level shorthand strokeColor as a final fallback before label-level textColor
     globalInner?.strokeColor ??
     globalOuter?.strokeColor ??
     globalLabel?.textColor ??
@@ -207,7 +192,6 @@ export function getLabelStyle(
     globalOuter?.fontWeight ??
     globalLabel?.fontWeight;
 
-  // Inner (inside-circle) font sizing (linear transformation)
   const innerMinFontSize =
     depthInner?.minFontSize ??
     globalInner?.minFontSize ??
@@ -219,11 +203,9 @@ export function getLabelStyle(
     globalLabel?.maxFontSize ??
     14;
 
-  // Outer (outside-circle) uses a static font size if provided
   const outerFontSize =
     depthOuter?.fontSize ?? globalOuter?.fontSize ?? globalLabel?.fontSize;
 
-  // Padding / fitting defaults: padding and link settings live under `outer` in the new schema
   const padding =
     depthOuter?.padding ?? globalOuter?.padding ?? globalLabel?.padding ?? 4;
   const insideFitFactor =
@@ -235,8 +217,6 @@ export function getLabelStyle(
   const linkFromDepth = depthOuter?.link ?? labelFromDepth?.link ?? null;
   const globalLink = globalOuter?.link ?? globalLabel?.link ?? {};
 
-  // Support shorthand: allow `inner.strokeColor` or `outer.strokeColor` to act as
-  // a shorthand for the link stroke color when `inner.link` / `outer.link` are not provided.
   const depthStrokeShorthand =
     depthInner?.strokeColor ?? depthOuter?.strokeColor ?? null;
   const globalStrokeShorthand =
@@ -256,16 +236,7 @@ export function getLabelStyle(
     length: linkFromDepth?.length ?? globalLink?.length ?? 5,
   };
 
-  // Highlight resolution:
-  // - Depth-specific highlights may appear in multiple shapes:
-  //   * depth.label.inner/outer.highlight (preferred)
-  //   * depth.highlight.label.inner/outer (alternate)
-  //   * legacy depth.label.highlight (flat)
-  // - Normalize these forms into a nested `depthLabelHighlight` object with optional
-  //   `inner` and `outer` groups. Map `strokeColor` -> `textColor` as an alias
-  //   for backward compatibility.
   const depthLabelHighlight = {};
-  // Try inner-group highlights from several possible locations (preferred -> fallback)
   const innerFromLabel = labelFromDepth?.inner?.highlight ?? null;
   const innerFromDepthHighlight = depthStyle?.highlight?.label?.inner ?? null;
   const innerLegacy = labelFromDepth?.highlight ?? null;
@@ -278,7 +249,6 @@ export function getLabelStyle(
       fontWeight: innerRaw?.fontWeight,
     };
   }
-  // Try outer-group highlights
   const outerFromLabel = labelFromDepth?.outer?.highlight ?? null;
   const outerFromDepthHighlight = depthStyle?.highlight?.label?.outer ?? null;
   const outerRaw = outerFromLabel ?? outerFromDepthHighlight ?? null;
@@ -289,14 +259,7 @@ export function getLabelStyle(
       fontWeight: outerRaw?.fontWeight,
     };
   }
-  // Global highlight (flat) remains the canonical global location
 
-  // Return both merged top-level properties (for backwards compatibility) and
-  // explicit `inner` / `outer` groups so callers can choose sizing rules.
-  //
-  // Expose `outer` group's common visual properties so callers can explicitly
-  // use `label.outer.*` (textColor, textOpacity, fontFamily, fontWeight,
-  // padding, link, fontSize) when rendering outside labels.
   return {
     textColor,
     textOpacity,
@@ -304,8 +267,6 @@ export function getLabelStyle(
     fontWeight,
     padding,
     link,
-    // Return the normalized nested highlight so downstream code (computeLabelLayout)
-    // can merge depth-specific inner/outer highlight groups with global highlight.
     highlight: Object.keys(depthLabelHighlight).length
       ? depthLabelHighlight
       : undefined,
@@ -315,7 +276,6 @@ export function getLabelStyle(
       maxFontSize: innerMaxFontSize,
     },
     outer: {
-      // Expose rendering-related properties for outside labels.
       textColor:
         depthOuter?.textColor ??
         globalOuter?.textColor ??
@@ -341,7 +301,6 @@ export function getLabelStyle(
         globalOuter?.padding ??
         globalLabel?.padding ??
         undefined,
-      // Centralize link defaults for outer labels
       link: {
         strokeColor: link.strokeColor,
         strokeOpacity: link.strokeOpacity,
@@ -349,7 +308,6 @@ export function getLabelStyle(
         padding: link.padding,
         length: link.length,
       },
-      // expose font size (still computed above)
       fontSize: outerFontSize,
     },
   };
@@ -391,9 +349,7 @@ export function shouldShowLeafLabel(
   const isHoveringLeafNode =
     hoveredNodeId !== null && leafNodes.has(hoveredNodeId);
   if (isHoveringLeafNode) {
-    // Always show the label for the currently hovered leaf node itself.
     if (nodeId === hoveredNodeId) return true;
-    // When hovering a leaf, for other leaves only show labels that are part of visibleNodeIds
     return Array.isArray(visibleNodeIds)
       ? visibleNodeIds.includes(nodeId)
       : visibleNodeIds.has(nodeId);
@@ -461,8 +417,6 @@ export function drawCenteredLabel(
   const fontSize = calculateFontSize(radius, minFontSize, maxFontSize);
   const h = highlightStyle || {};
   const ls = labelStyle || {};
-  // Prefer flat/top-level highlight fields over nested `inner` group values.
-  // Only consider nested `inner` highlight when the highlight object signals a depth-specific highlight.
   const hHasDepth = h && /** @type {any} */ (h).__hasDepthHighlight;
   const hFlat =
     highlightActive &&
@@ -478,7 +432,6 @@ export function drawCenteredLabel(
     highlightActive && h && /** @type {any} */ (h).__hasDepthHighlight
       ? (h.inner ?? null)
       : null;
-  // Fill color: prefer active flat highlight.textColor/strokeColor, then inner highlight textColor, then inner label value, then top-level label textColor
   const fillColor =
     hFlat && hFlat.textColor !== undefined
       ? hFlat.textColor
@@ -487,14 +440,12 @@ export function drawCenteredLabel(
         : hInner && hInner.textColor !== undefined
           ? hInner.textColor
           : (ls.inner?.textColor ?? ls.textColor);
-  // Opacity: prefer active flat highlight textOpacity, then inner highlight opacity, then inner label opacity, then 1
   const alpha =
     hFlat && hFlat.textOpacity !== undefined
       ? hFlat.textOpacity
       : hInner && hInner.textOpacity !== undefined
         ? hInner.textOpacity
         : (ls.inner?.textOpacity ?? ls.textOpacity ?? 1);
-  // Font weight: prefer active flat highlight fontWeight, then inner highlight fontWeight, then inner label weight, then none
   const fontWeightPrefix =
     hFlat && hFlat.fontWeight
       ? `${hFlat.fontWeight} `
@@ -564,19 +515,8 @@ export function shouldShowLabel(
  * @param {Array<any>} nodesWithLabels
  * @param {Map<number, any>} depthStyleCache
  * @param {Map<number, Set<string>>} negativeDepthNodes
- * @returns {void}
- */
-/**
- * Draw connectors (leader lines) between node anchor and outside label positions.
- *
- * @param {CanvasRenderingContext2D} ctx
- * @param {Array<{x1:number,y1:number,x2:number,y2:number,nodeId:string}>} links
- * @param {any} mergedStyle
- * @param {Array<any>} nodesWithLabels
- * @param {Map<number, any>} depthStyleCache
- * @param {Map<number, Set<string>>} negativeDepthNodes
- * @param {string|null|undefined} hoveredNodeId - id of the hovered node (may be null/undefined)
- * @param {Array<string>|Set<string>|null|undefined} highlightedNodeIds - collection (Array or Set-like) of highlighted node ids
+ * @param {string|null|undefined} hoveredNodeId
+ * @param {Array<string>|Set<string>|null|undefined} highlightedNodeIds
  * @returns {void}
  */
 export function drawLabelConnectors(
@@ -606,7 +546,6 @@ export function drawLabelConnectors(
         nodesWithLabels &&
         nodesWithLabels.find((n) => n && n.node && n.node.id === nodeId);
 
-      // Build a base linkStyle using global -> depth -> node precedence (node overrides depth overrides global).
       let linkStyle = null;
       let depthLink = {};
       let nodeLink = {};
@@ -633,19 +572,16 @@ export function drawLabelConnectors(
         ...(nodeLink || {}),
       };
 
-      // Determine if this node is currently highlighted (hover or neighbor)
       const isHighlighted =
         (hoveredNodeId ?? undefined) === nodeId ||
         highlightedContains(highlightedNodeIds, nodeId);
 
       if (isHighlighted) {
-        // Prefer depth-level highlight.link when present, then fall back to global highlight.link.
         const globalHighlightLink =
           mergedStyle?.highlight?.label?.outer?.link ??
           mergedStyle?.highlight?.label?.link ??
           {};
 
-        // Attempt to find a depth config object and any highlight.link nested there.
         let depthStyle = null;
         if (
           depthStyleCache &&
@@ -677,7 +613,6 @@ export function drawLabelConnectors(
           depthStyle?.label?.highlight?.link ??
           {};
 
-        // Apply highlight overrides (depth highlight first, then global highlight) on top of base linkStyle.
         linkStyle = {
           ...(linkStyle || {}),
           ...(depthHighlightLink || {}),
@@ -685,8 +620,6 @@ export function drawLabelConnectors(
         };
       }
 
-      // Prefer explicit link strokeColor, then per-node highlight (outer.textColor or outer.strokeColor
-      // or flat textColor/strokeColor), then fall back to global outer/text values.
       let highlightStrokeOrText = undefined;
       if (nodeData && nodeData.highlightStyle) {
         const hs = nodeData.highlightStyle;
@@ -762,26 +695,16 @@ export function drawPositionedLabel(
       depthStyleCache,
       negativeDepthNodes,
     ) || {};
-  // Outside-positioned labels use a static font size if provided via outer.fontSize.
-  // Use `outer.fontSize` exclusively for outside labels; fallback to 8 when missing.
   const fontSize = labelStyle.outer?.fontSize ?? 8;
 
-  // Determine if a per-node highlightStyle exists (computeLabelLayout attaches it to nodeData)
-  // Only apply per-node highlight overrides when this node is actively highlighted.
   const nodeHighlight =
     highlightActive && nodeData && nodeData.highlightStyle
       ? nodeData.highlightStyle
       : null;
 
-  // For outside-positioned labels: prefer highlight.outer values when present,
-  // but also support flat highlight objects for backward compatibility.
   const nhOuter = nodeHighlight ? (nodeHighlight.outer ?? nodeHighlight) : null;
-  // For inside-positioned labels we should prefer inner highlight overrides.
   const nhInner = nodeHighlight ? (nodeHighlight.inner ?? nodeHighlight) : null;
 
-  // Resolve visual properties based on whether the label is inside the node.
-  // Inside labels prefer `inner` group values and inner highlight overrides;
-  // outside labels continue to prefer `outer` group values and outer overrides.
   const resolvedTextColor = labelData.isInside
     ? (nhInner?.textColor ??
       nhInner?.strokeColor ??
@@ -841,10 +764,8 @@ export function drawPositionedLabel(
   });
 
   if (labelData.isInside) {
-    // Inside labels keep the same behavior and still pass highlight flags elsewhere (drawCenteredLabel)
     ctx.fillText(text, x + labelData.width / 2, y + labelData.height / 2);
   } else {
-    // Prefer outer.padding for outside labels, fall back to top-level padding, then to a default.
     const labelPadding =
       typeof labelStyle.outer?.padding === 'number'
         ? labelStyle.outer.padding
@@ -893,7 +814,6 @@ export function computeLabelLayout(
 ) {
   if (!ctx || !renderedNodes || renderedNodes.length === 0) return null;
 
-  // Check label layout cache — skip expensive simulated annealing when inputs are unchanged
   const cacheKey = labelLayoutCacheKey(
     renderedNodes,
     hoveredNodeId,
@@ -927,7 +847,6 @@ export function computeLabelLayout(
 
   const nodesInViewport = renderedNodes.filter(isInViewport);
 
-  // filter by basic label eligibility
   const eligibleNodes = nodesInViewport.filter((nodeData) => {
     const { radius, node, depth } = nodeData;
     const nodeId = node.id;
@@ -938,7 +857,6 @@ export function computeLabelLayout(
       depthStyleCache,
       negativeDepthNodes,
     );
-    // For outside-label eligibility checks prefer outer.textColor when present
     return shouldShowLabel(
       node,
       radius,
@@ -950,27 +868,20 @@ export function computeLabelLayout(
     );
   });
 
-  // If numLabels == 0, show no labels at all
   const labelLimit = Number(numLabels ?? 30);
   if (labelLimit === 0) return null;
 
-  // Determine nodes to show labels for (hover vs normal)
   let nodesWithLabels;
 
-  // When hovering a leaf node, restrict to nodes that are associated via highlightedNodeIds.
-  // Limit total to labelLimit largest by radius. Ensure the currently hovered node's label
-  // is always included if it is eligible and in the viewport.
   if (hoveredNodeId !== null && leafNodes.has(hoveredNodeId)) {
     const visibleSet = Array.isArray(highlightedNodeIds)
       ? new Set(highlightedNodeIds)
       : highlightedNodeIds || new Set();
 
-    // Candidates directly connected to hovered node.
     let connectedCandidates = eligibleNodes.filter((nd) =>
       visibleSet.has(nd.node.id),
     );
 
-    // Ensure the hovered node itself is present if eligible (may not be in visibleSet)
     const hoveredCandidate = eligibleNodes.find(
       (nd) => nd.node.id === hoveredNodeId,
     );
@@ -999,7 +910,6 @@ export function computeLabelLayout(
   const globalLabel = mergedStyle?.label ?? {};
   const globalInner = globalLabel.inner ?? {};
   const globalOuter = globalLabel.outer ?? {};
-  // Prefer outer font settings for outside labels when computing layout defaults
   const labelFontFamily =
     globalOuter.fontFamily ??
     globalInner.fontFamily ??
@@ -1023,7 +933,6 @@ export function computeLabelLayout(
         ? globalLabel.link.length
         : 5;
 
-  // Attach per-node resolved properties for the positioner
   nodesWithLabels.forEach((nodeData) => {
     const node = nodeData.node;
     const depth = nodeData.depth;
@@ -1061,8 +970,6 @@ export function computeLabelLayout(
     nodeData.linkPadding = node.label.link.padding;
     nodeData.linkLength = node.label.link.length;
 
-    // If this node is highlighted (hover or neighbor), allow highlight-level
-    // link overrides (depth highlight or global highlight) to affect layout.
     const nodeIsHighlighted =
       (typeof hoveredNodeId !== 'undefined' &&
         hoveredNodeId !== null &&
@@ -1075,7 +982,6 @@ export function computeLabelLayout(
         mergedStyle?.highlight?.label?.link ??
         {};
 
-      // Find depth-style object for this node (respect negative-depth mappings).
       let depthStyleObj = null;
       if (depthStyleCache && depthStyleCache.has(depth)) {
         depthStyleObj = depthStyleCache.get(depth);
@@ -1103,7 +1009,6 @@ export function computeLabelLayout(
         depthStyleObj?.label?.highlight?.link ??
         {};
 
-      // Apply highlight overrides for layout (depth highlight preferred).
       node.label.link.padding =
         depthHighlightLink?.padding ??
         globalHighlightLink?.padding ??
@@ -1113,7 +1018,6 @@ export function computeLabelLayout(
         globalHighlightLink?.length ??
         node.label.link.length;
 
-      // Reflect the effective values onto nodeData for the positioner.
       nodeData.linkPadding = node.label.link.padding;
       nodeData.linkLength = node.label.link.length;
     }
@@ -1128,33 +1032,14 @@ export function computeLabelLayout(
       ...(nodeLink || {}),
     };
 
-    // Global label highlight is now at the top-level `mergedStyle.highlight.label`.
-    // Depth-based highlights remain under per-node `perNodeStyle.highlight`.
     const globalHighlight = mergedStyle?.highlight?.label ?? {};
     const depthHighlight = perNodeStyle?.highlight ?? {};
-    // Build the base merged highlight (global + depth). We will only propagate
-    // flattened convenience fields (textColor/textOpacity/fontWeight) from the
-    // depth-specific highlight if a per-node depth highlight exists. This prevents
-    // global highlight values from being applied as flattened inner-label overrides
-    // for nodes that do not have a depth override.
     const baseHighlightMerged = {
       ...(globalHighlight || {}),
       ...(depthHighlight || {}),
     };
-    // Only derive whether a depth-specific highlight exists for this node.
-    // We'll avoid precomputing a flattened object here to prevent unused-variable
-    // issues and type mismatches. Later code will consult `depthHighlight` and
-    // `hasDepthHighlight` as needed.
     const hasDepthHighlight =
       depthHighlight && Object.keys(depthHighlight).length > 0;
-    // Compose final nodeData.highlightStyle:
-    // - always include merged base (global + depth)
-    // - include flattened convenience fields only when derived from a depth highlight
-    // Start with the merged base highlight (global + depth).
-    // Compose final nodeData.highlightStyle as a merge of global + depth highlight.
-    // Do NOT attach flattened per-depth fields here; that caused global highlights to
-    // override all nodes. Preserve only the merged highlight object and a flag
-    // indicating whether the node has a depth-specific highlight.
     nodeData.highlightStyle = {
       ...baseHighlightMerged,
       __hasDepthHighlight: hasDepthHighlight,
@@ -1167,8 +1052,6 @@ export function computeLabelLayout(
     height,
     {
       fontFamily: labelFontFamily,
-      // Prefer an explicit outer.fontSize for outside label layout when present;
-      // otherwise fall back to the inner/default min font size for layout.
       fontSize: globalOuter?.fontSize ?? labelMinFontSize,
       minRadius: 2,
       labelPadding: globalLabelPadding,
@@ -1186,7 +1069,6 @@ export function computeLabelLayout(
     labelMaxFontSize,
   };
 
-  // Cache the result
   _labelLayoutCache = result;
   _labelCacheKey = cacheKey;
 
@@ -1255,14 +1137,12 @@ export function drawLabels(
     );
   }
 
-  // draw labels on top
   for (const labelData of labels) {
     const nodeData = nodesWithLabels.find(
       (n) => n.node.id === labelData.nodeId,
     );
     if (!nodeData) continue;
 
-    // Determine highlight state for this node (used by both inner and outer label rendering)
     const { node } = nodeData;
     const isHighlighted =
       hoveredNodeId === node.id ||
@@ -1280,7 +1160,6 @@ export function drawLabels(
       const text = String(node.name || node.id);
       const minFS = labelStyle.inner?.minFontSize ?? labelMinFontSize;
       const maxFS = labelStyle.inner?.maxFontSize ?? labelMaxFontSize;
-      // For inner labels we continue to pass highlightStyle (it will be applied only when highlighted)
       drawCenteredLabel(
         ctx,
         text,
@@ -1294,7 +1173,6 @@ export function drawLabels(
         isHighlighted ? nodeData.highlightStyle : {},
       );
     } else {
-      // For outside labels only use per-node highlight overrides when the node is highlighted.
       drawPositionedLabel(
         ctx,
         labelData,
