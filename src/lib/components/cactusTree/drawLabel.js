@@ -141,15 +141,16 @@ export function getLabelStyle(
   depthStyleCache,
   negativeDepthNodes,
 ) {
+  // Apply positive depth first
   let depthStyle = null;
   if (depthStyleCache && depthStyleCache.has(depth)) {
     depthStyle = depthStyleCache.get(depth);
-  } else if (mergedStyle?.depths) {
+  }
+
+  // Then apply negative depths (override positive if matched)
+  if (mergedStyle?.depths) {
     for (const ds of mergedStyle.depths) {
-      if (ds.depth === depth) {
-        depthStyle = ds;
-        break;
-      } else if (ds.depth < 0) {
+      if (ds.depth < 0) {
         const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
         if (nodesAtThisNegativeDepth && nodesAtThisNegativeDepth.has(nodeId)) {
           depthStyle = ds;

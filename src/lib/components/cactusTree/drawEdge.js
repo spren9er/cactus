@@ -417,10 +417,8 @@ export function drawEdge(
   // Read base edge styles (use sensible defaults so hover preserves configured appearance)
   // Merge depth-specific edge overrides with global edge styles so missing fields fall back to global.
   // Resolve depth-specific style:
-  // 1) Prefer cached non-negative depth styles (fast path).
-  // 2) Fall back to explicit `mergedStyle.depths` matching:
-  //    - exact positive depth match
-  //    - negative-depth mapping (map -1 => deepest leaves, -2 => parents of leaves, etc.)
+  // 1) Apply positive depth styles first (via cache or explicit match).
+  // 2) Then apply negative depths, which override positive if matched.
   let depthStyle = null;
   if (depthStyleCache) {
     depthStyle =
@@ -429,85 +427,84 @@ export function drawEdge(
       null;
   }
 
-  if (!depthStyle && mergedStyle?.depths) {
-    // Resolve depth-style with the following precedence:
-    // 1) exact positive-depth match
-    // 2) negative-depth sets via `negativeDepthNodes` (preferred if provided)
-    // 3) fallback mapping from negative depth to absolute depth using computed maxDepth
+  if (mergedStyle?.depths) {
+    // Check negative depths (override positive if matched)
+    let negativeMatch = null;
     for (const ds of mergedStyle.depths) {
-      // Exact positive-depth match
-      if (ds.depth === sourceNode?.depth || ds.depth === targetNode?.depth) {
-        depthStyle = ds;
-        break;
-      }
-
-      // If this is a negative-depth entry, try the negativeDepthNodes mapping first.
       if (ds.depth < 0) {
         if (negativeDepthNodes) {
-          // If caller provided a negativeDepthNodes map (preferred), consult it.
           const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
           if (
             nodesAtThisNegativeDepth &&
             (nodesAtThisNegativeDepth.has(sourceNode?.id) ||
               nodesAtThisNegativeDepth.has(targetNode?.id))
           ) {
-            depthStyle = ds;
+            negativeMatch = ds;
             break;
           }
         }
       }
     }
 
-    // If we still haven't found a matching depthStyle but there are negative-depth
-    // entries and no negativeDepthNodes map was used, fall back to computing
-    // the maximum depth and mapping negative indices to absolute depths.
-    if (!depthStyle) {
-      let hasNegative = false;
+    if (negativeMatch) {
+      depthStyle = negativeMatch;
+    } else if (!depthStyle) {
+      // No negative match and no positive cache hit — try explicit positive match
       for (const ds of mergedStyle.depths) {
-        if (ds.depth < 0) {
-          hasNegative = true;
+        if (
+          ds.depth >= 0 &&
+          (ds.depth === sourceNode?.depth || ds.depth === targetNode?.depth)
+        ) {
+          depthStyle = ds;
           break;
         }
       }
 
-      if (hasNegative) {
-        // Compute maximum depth available in the layout to support negative-depth mapping.
-        // Negative depth `d` maps to targetDepth = maxDepth + d + 1
-        // e.g. d = -1 => targetDepth = maxDepth (leaves)
-        let maxDepth = -Infinity;
-        try {
-          if (
-            nodeIdToRenderedNodeMap &&
-            typeof nodeIdToRenderedNodeMap.values === 'function'
-          ) {
-            for (const val of nodeIdToRenderedNodeMap.values()) {
-              if (val && typeof val.depth === 'number') {
-                maxDepth = Math.max(maxDepth, val.depth);
+      // Fallback: map negative depth indices to absolute depths using computed maxDepth
+      if (!depthStyle) {
+        let hasNegative = false;
+        for (const ds of mergedStyle.depths) {
+          if (ds.depth < 0) {
+            hasNegative = true;
+            break;
+          }
+        }
+
+        if (hasNegative) {
+          let maxDepth = -Infinity;
+          try {
+            if (
+              nodeIdToRenderedNodeMap &&
+              typeof nodeIdToRenderedNodeMap.values === 'function'
+            ) {
+              for (const val of nodeIdToRenderedNodeMap.values()) {
+                if (val && typeof val.depth === 'number') {
+                  maxDepth = Math.max(maxDepth, val.depth);
+                }
               }
+            } else {
+              maxDepth = Math.max(
+                sourceNode?.depth ?? -Infinity,
+                targetNode?.depth ?? -Infinity,
+              );
             }
-          } else {
-            // Fallback to endpoint depths if the map isn't iterable for some reason
+          } catch {
             maxDepth = Math.max(
               sourceNode?.depth ?? -Infinity,
               targetNode?.depth ?? -Infinity,
             );
           }
-        } catch {
-          maxDepth = Math.max(
-            sourceNode?.depth ?? -Infinity,
-            targetNode?.depth ?? -Infinity,
-          );
-        }
 
-        for (const ds of mergedStyle.depths) {
-          if (ds.depth < 0 && isFinite(maxDepth)) {
-            const targetDepth = maxDepth + ds.depth + 1;
-            if (
-              sourceNode?.depth === targetDepth ||
-              targetNode?.depth === targetDepth
-            ) {
-              depthStyle = ds;
-              break;
+          for (const ds of mergedStyle.depths) {
+            if (ds.depth < 0 && isFinite(maxDepth)) {
+              const targetDepth = maxDepth + ds.depth + 1;
+              if (
+                sourceNode?.depth === targetDepth ||
+                targetNode?.depth === targetDepth
+              ) {
+                depthStyle = ds;
+                break;
+              }
             }
           }
         }

@@ -91,11 +91,11 @@ export function getDepthStyle(
   depthStyleCache,
   negativeDepthNodes,
 ) {
-  // Try cache first
+  // Apply positive depth first
   let depthStyle = depthStyleCache.get(depth);
 
-  // Handle negative depths if no direct match
-  if (!depthStyle && mergedStyle?.depths) {
+  // Then apply negative depths (override positive if matched)
+  if (mergedStyle?.depths) {
     for (const ds of mergedStyle.depths) {
       if (ds.depth < 0) {
         const nodesAtThisNegativeDepth = negativeDepthNodes.get(ds.depth);
