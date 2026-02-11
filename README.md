@@ -140,7 +140,7 @@ interface Options {
   orientation?: number;       // Root orientation in radians (default: π/2)
   zoom?: number;              // Layout zoom factor (default: 1.0)
   numLabels?: number;         // Number of labels (default: 20)
-  edgeOptions?: EdgeOptions;  // Edge-specific interactive settings
+  edges?: EdgeOptions;        // Edge-specific options
 }
 
 interface EdgeOptions {

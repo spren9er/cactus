@@ -22,7 +22,7 @@
     zoom: 1.0,
     numLabels: 20,
     bundlingStrength: 0.97,
-    filterMode: 'mute',
+    filterMode: 'hide',
     muteOpacity: 0.2,
   };
 
@@ -245,7 +245,7 @@
         orientation: (config.orientation * Math.PI) / 180,
         zoom: config.zoom,
         numLabels: config.numLabels,
-        edgeOptions: {
+        edges: {
           bundlingStrength: config.bundlingStrength,
           filterMode: config.filterMode,
           muteOpacity: config.muteOpacity,

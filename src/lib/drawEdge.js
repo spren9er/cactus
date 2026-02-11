@@ -551,7 +551,7 @@ export function computeVisibleEdgeNodeIds(
  * @param {any} hoveredNodeId
  * @param {any} highlightedNodeIds
  * @param {any} bundlingStrength
- * @param {{bundlingStrength?:number,filterMode?:string,muteOpacity?:number}|null} edgeOptions
+ * @param {{bundlingStrength?:number,filterMode?:string,muteOpacity?:number}|null} edgesOptions
  * @param {Map<number, any>|null} depthStyleCache
  * @param {Map<number, Set<string>>|null} negativeDepthNodes
  * @returns {string[]}
@@ -565,7 +565,7 @@ export function drawEdges(
   hoveredNodeId,
   highlightedNodeIds = null,
   bundlingStrength = 0.97,
-  edgeOptions = null,
+  edgesOptions = null,
   depthStyleCache = null,
   negativeDepthNodes = null,
 ) {
@@ -584,13 +584,13 @@ export function drawEdges(
 
   const visibleSet = new Set();
 
-  const edgeOptionsLocal = edgeOptions ?? mergedStyle?.edgeOptions ?? {};
+  const edgesOptionsLocal = edgesOptions ?? mergedStyle?.edges ?? {};
   const effectiveBundlingStrength =
-    bundlingStrength ?? edgeOptionsLocal?.bundlingStrength ?? 0.97;
-  const filterMode = edgeOptionsLocal.filterMode ?? 'hide';
+    bundlingStrength ?? edgesOptionsLocal?.bundlingStrength ?? 0.97;
+  const filterMode = edgesOptionsLocal.filterMode ?? 'hide';
   const muteOpacity =
-    typeof edgeOptionsLocal.muteOpacity === 'number'
-      ? edgeOptionsLocal.muteOpacity
+    typeof edgesOptionsLocal.muteOpacity === 'number'
+      ? edgesOptionsLocal.muteOpacity
       : 0.25;
 
   const backgroundEdges = [];

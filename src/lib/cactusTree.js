@@ -26,7 +26,7 @@ const DEFAULT_OPTIONS = {
   orientation: Math.PI / 2,
   zoom: 1.0,
   numLabels: 20,
-  edgeOptions: {
+  edges: {
     bundlingStrength: 0.97,
     filterMode: 'hide',
     muteOpacity: 0.2,
@@ -430,8 +430,8 @@ export class CactusTree {
       this.mergedStyle,
       this.hoveredNodeId,
       edgeHighlightedNodeIds,
-      Number(this.mergedOptions?.edgeOptions?.bundlingStrength ?? 0.97),
-      this.mergedOptions?.edgeOptions ?? {},
+      Number(this.mergedOptions?.edges?.bundlingStrength ?? 0.97),
+      this.mergedOptions?.edges ?? {},
       this.depthStyleCache,
       this.negativeDepthNodes,
     );
