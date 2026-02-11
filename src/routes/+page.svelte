@@ -151,7 +151,7 @@
             type="range"
             min="-2"
             max="1"
-            step="0.05"
+            step="0.02"
             bind:value={config.overlap}
           />
         </label>
@@ -165,7 +165,7 @@
             type="range"
             min="90"
             max="360"
-            step="5"
+            step="1"
             bind:value={config.arcSpan}
           />
         </label>
@@ -177,9 +177,9 @@
           <input
             id="sizeGrowthRate"
             type="range"
-            min="0.3"
+            min="0.5"
             max="1.0"
-            step="0.05"
+            step="0.01"
             bind:value={config.sizeGrowthRate}
           />
         </label>
@@ -207,7 +207,7 @@
             type="range"
             min={0}
             max={360}
-            step="10"
+            step="1"
             bind:value={config.orientation}
           />
         </label>
@@ -221,7 +221,7 @@
             type="range"
             min="0"
             max="60"
-            step="5"
+            step="1"
             bind:value={config.numLabels}
           />
         </label>
