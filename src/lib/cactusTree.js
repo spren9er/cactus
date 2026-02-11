@@ -93,18 +93,137 @@ const DEFAULT_STYLE = {
   depths: [],
 };
 
+// ── Type definitions ─────────────────────────────────────────────────────────
+
+/**
+ * @typedef {Object} EdgeOptions
+ * @property {number} [bundlingStrength]
+ * @property {'hide' | 'mute'} [filterMode]
+ * @property {number} [muteOpacity]
+ */
+
+/**
+ * @typedef {Object} Options
+ * @property {number} [overlap]
+ * @property {number} [arcSpan]
+ * @property {number} [sizeGrowthRate]
+ * @property {number} [orientation]
+ * @property {number} [zoom]
+ * @property {number} [numLabels]
+ * @property {EdgeOptions} [edges]
+ */
+
+/**
+ * @typedef {Object} NodeStyle
+ * @property {string} [fillColor]
+ * @property {number} [fillOpacity]
+ * @property {string} [strokeColor]
+ * @property {number} [strokeOpacity]
+ * @property {number} [strokeWidth]
+ */
+
+/**
+ * @typedef {Object} EdgeStyle
+ * @property {string} [strokeColor]
+ * @property {number} [strokeOpacity]
+ * @property {number} [strokeWidth]
+ */
+
+/**
+ * @typedef {Object} LabelLinkStyle
+ * @property {string} [strokeColor]
+ * @property {number} [strokeOpacity]
+ * @property {number} [strokeWidth]
+ * @property {number} [padding]
+ * @property {number} [length]
+ */
+
+/**
+ * @typedef {Object} InnerLabelStyle
+ * @property {string} [textColor]
+ * @property {number} [textOpacity]
+ * @property {string} [fontFamily]
+ * @property {string} [fontWeight]
+ * @property {number} [minFontSize]
+ * @property {number} [maxFontSize]
+ */
+
+/**
+ * @typedef {Object} OuterLabelStyle
+ * @property {string} [textColor]
+ * @property {number} [textOpacity]
+ * @property {string} [fontFamily]
+ * @property {string} [fontWeight]
+ * @property {number} [fontSize]
+ * @property {number} [padding]
+ * @property {LabelLinkStyle} [link]
+ */
+
+/**
+ * @typedef {Object} LabelStyle
+ * @property {InnerLabelStyle} [inner]
+ * @property {OuterLabelStyle} [outer]
+ */
+
+/**
+ * @typedef {Object} LinkStyle
+ * @property {string} [strokeColor]
+ * @property {number} [strokeOpacity]
+ * @property {number} [strokeWidth]
+ */
+
+/**
+ * @typedef {Object} HighlightInnerLabelStyle
+ * @property {string} [textColor]
+ * @property {number} [textOpacity]
+ * @property {string} [fontWeight]
+ */
+
+/**
+ * @typedef {Object} HighlightOuterLabelStyle
+ * @property {string} [textColor]
+ * @property {number} [textOpacity]
+ * @property {string} [fontWeight]
+ */
+
+/**
+ * @typedef {Object} HighlightStyle
+ * @property {NodeStyle} [node]
+ * @property {EdgeStyle} [edge]
+ * @property {{ inner?: HighlightInnerLabelStyle, outer?: HighlightOuterLabelStyle }} [label]
+ */
+
+/**
+ * @typedef {Object} DepthStyle
+ * @property {number} depth
+ * @property {NodeStyle} [node]
+ * @property {LabelStyle} [label]
+ * @property {LinkStyle} [link]
+ * @property {{ node?: NodeStyle, label?: { inner?: HighlightInnerLabelStyle, outer?: HighlightOuterLabelStyle } }} [highlight]
+ */
+
+/**
+ * @typedef {Object} Styles
+ * @property {NodeStyle} [node]
+ * @property {EdgeStyle} [edge]
+ * @property {LabelStyle} [label]
+ * @property {LinkStyle} [link]
+ * @property {HighlightStyle} [highlight]
+ * @property {DepthStyle[]} [depths]
+ */
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** @param {any} userOptions */
+/** @param {Options} [userOptions] */
 function mergeOptions(userOptions) {
   const merged = { ...DEFAULT_OPTIONS, ...userOptions };
   merged.edges = { ...DEFAULT_OPTIONS.edges, ...(userOptions?.edges || {}) };
   return merged;
 }
 
-/** @param {any} userStyles */
+/** @param {Styles} [userStyles] */
 function mergeStyles(userStyles) {
-  const s = userStyles || {};
+  const s = /** @type {Record<string, any>} */ (userStyles || {});
 
   /** @param {string} key */
   const mergeGroup = (key) => {
@@ -163,7 +282,7 @@ function mergeStyles(userStyles) {
 export class CactusTree {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: any, styles?: any, pannable?: boolean, zoomable?: boolean }} config
+   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: Options, styles?: Styles, pannable?: boolean, zoomable?: boolean }} config
    */
   constructor(canvas, config = {}) {
     this.canvas = canvas;
@@ -226,7 +345,7 @@ export class CactusTree {
   /**
    * Update configuration. Any subset of the config properties may be provided.
    * Triggers a full re-render.
-   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: any, styles?: any, pannable?: boolean, zoomable?: boolean }} config
+   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: Options, styles?: Styles, pannable?: boolean, zoomable?: boolean }} config
    */
   update(config) {
     if (!config) return;
