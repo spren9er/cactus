@@ -65,7 +65,7 @@ const DEFAULT_STYLE = {
       link: {
         strokeColor: '#cccccc',
         strokeOpacity: 1,
-        strokeWidth: 0.5,
+        strokeWidth: 1,
         padding: 0,
         length: 5,
       },
@@ -82,6 +82,12 @@ const DEFAULT_STYLE = {
     },
     edge: {
       strokeOpacity: 0.5,
+    },
+    label: {
+      // provide default structure so merge/lookup code can safely access
+      // highlight.label.inner / highlight.label.outer without undefined errors
+      inner: {},
+      outer: {},
     },
   },
   depths: [],

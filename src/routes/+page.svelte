@@ -50,12 +50,12 @@
   }
 
   const availableStyles = [
-    { value: 'default.json', label: 'Default' },
     { value: 'classic.json', label: 'Classic' },
     { value: 'minimal.json', label: 'Minimal' },
+    { value: 'default.json', label: 'Default' },
   ];
 
-  let selectedStyle = 'default.json';
+  let selectedStyle = 'classic.json';
   let currentStyles = {};
 
   /** @param {string} styleName */
