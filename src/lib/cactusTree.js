@@ -78,28 +78,10 @@ const DEFAULT_STYLE = {
   },
   highlight: {
     node: {
-      fillColor: '#dedede',
-      fillOpacity: 1,
       strokeColor: '#333333',
-      strokeOpacity: 1,
-      strokeWidth: 1,
     },
     edge: {
-      strokeColor: '#ea575a',
-      strokeOpacity: 0.2,
-      strokeWidth: 1,
-    },
-    label: {
-      inner: {
-        textColor: '#ea575a',
-        textOpacity: 1,
-        fontWeight: 'bold',
-      },
-      outer: {
-        textColor: '#333333',
-        textOpacity: 1,
-        fontWeight: 'normal',
-      },
+      strokeOpacity: 0.5,
     },
   },
   depths: [],
