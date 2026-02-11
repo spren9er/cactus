@@ -8,6 +8,7 @@
 import { setupCanvas } from './canvasUtils.js';
 import { drawNodes } from './drawNode.js';
 import * as drawEdge from './drawEdge.js';
+import { drawConnectingLinks } from './drawLink.js';
 import { drawLabels, clearLabelLayoutCache } from './drawLabel.js';
 import { createMouseHandlers } from './mouseHandlers.js';
 import {
@@ -70,7 +71,7 @@ const DEFAULT_STYLE = {
       },
     },
   },
-  line: {
+  link: {
     strokeColor: '#aaaaaa',
     strokeOpacity: 1,
     strokeWidth: 1,
@@ -143,7 +144,7 @@ function mergeStyles(userStyles) {
     node: mergeGroup('node'),
     edge: mergeGroup('edge'),
     label: mergeGroup('label'),
-    line: { ...(DEFAULT_STYLE.line || {}), ...(s.line || {}) },
+    link: { ...(DEFAULT_STYLE.link || {}), ...(s.link || {}) },
     highlight: {
       node: {
         ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.node) || {}),
@@ -352,8 +353,8 @@ export class CactusTree {
     this.ctx.save();
     this.ctx.translate(this.panX, this.panY);
 
-    // Draw connecting parent->child lines (only when overlap < 0)
-    drawEdge.drawConnectingLines(
+    // Draw connecting parent->child links (only when overlap < 0)
+    drawConnectingLinks(
       this.ctx,
       this.renderedNodes,
       this.parentToChildrenNodeMap,

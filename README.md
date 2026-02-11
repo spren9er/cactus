@@ -195,7 +195,7 @@ interface Styles {
       };
     };
   };
-  line?: {
+  link?: {
     strokeColor?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
@@ -283,7 +283,7 @@ interface DepthStyle {
       };
     };
   };
-  line?: {
+  link?: {
     strokeColor?: string;
     strokeOpacity?: number;
     strokeWidth?: number;

@@ -5,83 +5,11 @@
  * - Build hierarchical paths for edge bundling
  * - Convert paths to coordinates using rendered node lookup
  * - Draw individual edges with support for highlighting and bundling
- * - Draw connecting lines between parent/child nodes
  * - Compute which node ids are visible via drawn edges (used for label highlighting)
  */
 
-import { setCanvasStyles } from './canvasUtils.js';
+import { setCanvasStyles, colorWithAlpha } from './canvasUtils.js';
 import { resolveDepthStyle } from './drawNode.js';
-
-/**
- * Utility: embed an alpha into a color string when possible.
- * - If color is hex (#rgb or #rrggbb) -> convert to rgba(...)
- * - If color is 'rgb(...)' -> convert to rgba(...)
- * - If color is already 'rgba(...)' -> replace alpha component
- * - Otherwise return the original color (alpha ignored)
- *
- * This lets us avoid touching `ctx.globalAlpha` while still applying per-stroke opacity.
- * Results are cached since only a small number of distinct color+alpha combinations exist.
- *
- * @param {string} color
- * @param {number} alpha
- * @returns {string}
- */
-/** @type {Map<string, string>} */
-const _colorAlphaCache = new Map();
-const _COLOR_CACHE_MAX_SIZE = 256;
-
-/**
- * @param {string} color
- * @param {number} alpha
- * @returns {string}
- */
-function colorWithAlpha(color, alpha) {
-  if (color == null) return color;
-  const c = String(color).trim();
-  if (!c) return c;
-  if (alpha === undefined || alpha === null) return c;
-  if (alpha === 1) return c;
-
-  const cacheKey = `${c}|${alpha}`;
-  const cached = _colorAlphaCache.get(cacheKey);
-  if (cached !== undefined) return cached;
-
-  let result = c;
-
-  if (c.startsWith('rgba(')) {
-    const inner = c.slice(5, -1);
-    const parts = inner.split(',').map((s) => s.trim());
-    if (parts.length >= 3) {
-      result = `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
-    }
-  } else if (c.startsWith('rgb(')) {
-    const inner = c.slice(4, -1);
-    const parts = inner.split(',').map((s) => s.trim());
-    if (parts.length >= 3) {
-      result = `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
-    }
-  } else if (c[0] === '#') {
-    let hex = c.slice(1);
-    if (hex.length === 3) {
-      hex = hex
-        .split('')
-        .map((h) => h + h)
-        .join('');
-    }
-    if (hex.length === 6) {
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      result = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-  }
-
-  if (_colorAlphaCache.size > _COLOR_CACHE_MAX_SIZE) {
-    _colorAlphaCache.clear();
-  }
-  _colorAlphaCache.set(cacheKey, result);
-  return result;
-}
 
 /**
  * Build hierarchical path (array of ancestor nodes) between two rendered nodes.
@@ -557,72 +485,6 @@ export function drawEdge(
   if (ctx.lineWidth !== prevWidth) ctx.lineWidth = prevWidth;
   if (ctx.strokeStyle !== prevStroke) ctx.strokeStyle = prevStroke;
   return true;
-}
-
-/**
- * Draw connecting lines between parent & child nodes (for overlap < 0 case).
- *
- * @param {CanvasRenderingContext2D} ctx
- * @param {Array<any>} renderedNodes
- * @param {Map<string, any[]>} parentToChildrenNodeMap
- * @param {any} mergedStyle
- * @param {Map<number, any>} depthStyleCache
- * @param {number} overlap
- * @param {Map<number, Set<string>>} negativeDepthNodes
- */
-export function drawConnectingLines(
-  ctx,
-  renderedNodes,
-  parentToChildrenNodeMap,
-  mergedStyle,
-  depthStyleCache,
-  overlap,
-  negativeDepthNodes,
-) {
-  if (!ctx || overlap >= 0 || !renderedNodes || renderedNodes.length === 0)
-    return;
-
-  for (const nodeData of renderedNodes) {
-    const { x, y, node, depth } = nodeData;
-    const children =
-      (parentToChildrenNodeMap && parentToChildrenNodeMap.get(node.id)) || [];
-    for (const child of children) {
-      const depthStyle = resolveDepthStyle(
-        depth,
-        node.id,
-        mergedStyle,
-        depthStyleCache,
-        negativeDepthNodes,
-      );
-
-      const lineWidth =
-        depthStyle?.line?.strokeWidth ?? mergedStyle?.line?.strokeWidth ?? 0;
-      const lineColor =
-        depthStyle?.line?.strokeColor ??
-        mergedStyle?.line?.strokeColor ??
-        'none';
-      const lineOpacity =
-        depthStyle?.line?.strokeOpacity ??
-        mergedStyle?.line?.strokeOpacity ??
-        1;
-
-      if (lineWidth > 0 && lineColor !== 'none') {
-        const prevStroke = ctx.strokeStyle;
-        const prevWidthLocal = ctx.lineWidth;
-        const strokeStyleWithAlpha = colorWithAlpha(lineColor, lineOpacity);
-        setCanvasStyles(ctx, {
-          strokeStyle: strokeStyleWithAlpha,
-          lineWidth,
-        });
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(child.x, child.y);
-        ctx.stroke();
-        if (ctx.lineWidth !== prevWidthLocal) ctx.lineWidth = prevWidthLocal;
-        if (ctx.strokeStyle !== prevStroke) ctx.strokeStyle = prevStroke;
-      }
-    }
-  }
 }
 
 /**
