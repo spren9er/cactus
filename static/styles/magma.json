@@ -5,11 +5,13 @@
   "edge": {
     "strokeColor": "#ffffff"
   },
+  "link": {
+    "strokeColor": "#333333"
+  },
   "label": {
     "inner": {
       "textColor": "#efefef",
       "fontFamily": "monospace",
-      "fontWeight": "normal",
       "minFontSize": 9,
       "maxFontSize": 14
     },
@@ -17,7 +19,6 @@
       "textColor": "#333333",
       "textOpacity": 1,
       "fontFamily": "monospace",
-      "fontWeight": "normal",
       "fontSize": 9,
       "link": {
         "strokeColor": "#cccccc"
@@ -29,9 +30,9 @@
       "depth": -1,
       "highlight": {
         "node": {
-          "fillColor": "#efefef",
+          "fillColor": "#ffffff",
           "strokeColor": "#333333",
-          "strokeWidth": 2
+          "strokeWidth": 1.5
         },
         "label": {
           "inner": {
