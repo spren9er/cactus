@@ -986,9 +986,37 @@ export class LabelPositioner {
       return outsideLabels;
     }
 
-    // Separate preserved (fixed) and new (need MC optimization) labels
-    const preservedLabels = outsideLabels.filter((d) => d.preserved);
-    const newLabels = outsideLabels.filter((d) => !d.preserved);
+    // Separate preserved (fixed) and new (need MC optimization) labels.
+    // Then check preserved labels for mutual overlaps — when zooming out,
+    // circles shrink but label dimensions stay fixed, so previously
+    // non-overlapping labels can start overlapping. Any preserved label
+    // involved in an overlap is demoted to "new" so MC can reposition it.
+    let preservedLabels = outsideLabels.filter((d) => d.preserved);
+    let newLabels = outsideLabels.filter((d) => !d.preserved);
+
+    if (preservedLabels.length > 1) {
+      const demoted = new Set();
+      for (let i = 0; i < preservedLabels.length; i++) {
+        for (let j = i + 1; j < preservedLabels.length; j++) {
+          if (preservedLabels[i].label.overlaps(preservedLabels[j].label)) {
+            demoted.add(i);
+            demoted.add(j);
+          }
+        }
+      }
+      if (demoted.size > 0) {
+        const kept = [];
+        for (let i = 0; i < preservedLabels.length; i++) {
+          if (demoted.has(i)) {
+            preservedLabels[i].preserved = false;
+            newLabels.push(preservedLabels[i]);
+          } else {
+            kept.push(preservedLabels[i]);
+          }
+        }
+        preservedLabels = kept;
+      }
+    }
 
     // If all labels are preserved, no MC needed
     if (newLabels.length === 0) {
