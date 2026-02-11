@@ -28,6 +28,11 @@
   "depths": [
     {
       "depth": -1,
+      "label": {
+        "inner": {
+          "textColor": "#333333"
+        }
+      },
       "highlight": {
         "node": {
           "fillColor": "#ffffff",

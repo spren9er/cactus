@@ -84,8 +84,6 @@ const DEFAULT_STYLE = {
       strokeOpacity: 0.5,
     },
     label: {
-      // provide default structure so merge/lookup code can safely access
-      // highlight.label.inner / highlight.label.outer without undefined errors
       inner: {},
       outer: {},
     },
@@ -360,12 +358,20 @@ export class CactusTree {
 
     if (config.width !== undefined) this.width = config.width;
     if (config.height !== undefined) this.height = config.height;
-    if (config.nodes !== undefined) this.nodes = config.nodes;
-    if (config.edges !== undefined) this.edges = config.edges;
     if (config.options !== undefined)
       this.mergedOptions = mergeOptions(config.options);
     if (config.styles !== undefined)
       this.mergedStyle = mergeStyles(config.styles);
+    if (config.nodes !== undefined) {
+      const nodesChanged = config.nodes !== this.nodes;
+      this.nodes = config.nodes;
+      if (nodesChanged) {
+        this.currentZoom = 1;
+        this.panX = 0;
+        this.panY = 0;
+      }
+    }
+    if (config.edges !== undefined) this.edges = config.edges;
     if (config.pannable !== undefined) {
       this.pannable = config.pannable;
       needsHandlerRebind = true;
@@ -455,13 +461,10 @@ export class CactusTree {
       this.minZoomLimit = limits.minZoomLimit;
       this.maxZoomLimit = limits.maxZoomLimit;
 
-      if (
-        this.currentZoom < this.minZoomLimit ||
-        this.currentZoom > this.maxZoomLimit
-      ) {
-        this.currentZoom = 1.0;
-        this.panX = 0;
-        this.panY = 0;
+      if (this.currentZoom < this.minZoomLimit) {
+        this.currentZoom = this.minZoomLimit;
+      } else if (this.currentZoom > this.maxZoomLimit) {
+        this.currentZoom = this.maxZoomLimit;
       }
     }
   }
