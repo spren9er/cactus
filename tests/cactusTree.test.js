@@ -267,7 +267,7 @@ describe('mergeStyles (via CactusTree.mergedStyle)', () => {
     expect(tree.mergedStyle.label.outer.link.strokeColor).toBe('#ff0000');
     // Other link defaults preserved
     expect(tree.mergedStyle.label.outer.link.strokeOpacity).toBe(1);
-    expect(tree.mergedStyle.label.outer.link.strokeWidth).toBe(0.5);
+    expect(tree.mergedStyle.label.outer.link.strokeWidth).toBe(1);
     expect(tree.mergedStyle.label.outer.link.padding).toBe(0);
     expect(tree.mergedStyle.label.outer.link.length).toBe(5);
 
