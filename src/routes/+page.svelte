@@ -128,7 +128,7 @@
         {nodes.length} nodes, {edges.length} edges
       </div>
 
-      <label for="style" style="margin-left:12px;">
+      <label for="style">
         Style:
         <select
           id="style"
@@ -510,5 +510,27 @@
   .footer a:hover {
     color: #efefef;
     text-decoration: underline;
+  }
+
+  @media (max-width: 600px) {
+    .dataset-selector {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .visualization {
+      width: 100% !important;
+      height: auto !important;
+      aspect-ratio: 1;
+      overflow: hidden;
+    }
+
+    .bundle-row.row2 {
+      grid-template-columns: 1fr;
+    }
+
+    .footer {
+      margin-left: -20px;
+    }
   }
 </style>
