@@ -1,6 +1,7 @@
 {
   "name": "cactuz",
-  "version": "0.2.1",
+  "version": "0.2.2",
+  "description": "A JavaScript library for visualizing hierarchical data as cactus tree",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && npm run prepack",
@@ -22,14 +23,13 @@
     "**/*.css"
   ],
   "type": "module",
-  "module": "./dist/index.js",
   "svelte": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
       "svelte": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": "./dist/index.js"
     }
   },
   "peerDependencies": {
@@ -60,8 +60,5 @@
   "keywords": [
     "svelte"
   ],
-  "dependencies": {
-    "rand-seed": "^3.0.0"
-  },
   "license": "MIT"
 }
