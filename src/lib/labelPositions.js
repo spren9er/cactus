@@ -3,8 +3,6 @@
  * Handles smart label placement to avoid overlaps and provide readable text layout
  */
 
-import Rand, { PRNG } from 'rand-seed';
-
 /**
  * Represents a text label with position and dimensions
  */
@@ -115,8 +113,8 @@ export class CircleAwareLabeler {
     /** @type {any[]} */
     this.links = [];
 
-    // Random number generator (same seed for consistency)
-    this.rand = new Rand('42', PRNG.mulberry32);
+    // Fixed labels (preserved from previous frame, not moved by MC)
+    this.fixedLabels = options.fixedLabels || [];
 
     // Energy function weights
     this.wLeaderLineLength = options.wLeaderLineLength || 0.2;
@@ -144,7 +142,7 @@ export class CircleAwareLabeler {
 
     for (let i = 0; i < nSweeps; i++) {
       for (let j = 0; j < this.labels.length; j++) {
-        if (this.rand.next() < 0.5) {
+        if (Math.random() < 0.5) {
           this.monteCarloMove(currentTemperature);
         } else {
           this.monteCarloRotate(currentTemperature);
@@ -332,6 +330,19 @@ export class CircleAwareLabeler {
       energy += overlapArea * this.wLabelLabelOverlap;
     }
 
+    // Check overlaps against fixed (preserved) labels
+    for (const fixedLabel of this.fixedLabels) {
+      const x11 = fixedLabel.x;
+      const y11 = fixedLabel.y;
+      const x12 = fixedLabel.x + fixedLabel.width;
+      const y12 = fixedLabel.y + fixedLabel.height;
+
+      const xOverlap = Math.max(0, Math.min(x12, x22) - Math.max(x11, x21));
+      const yOverlap = Math.max(0, Math.min(y12, y22) - Math.max(y11, y21));
+      const overlapArea = xOverlap * yOverlap;
+      energy += overlapArea * this.wLabelLabelOverlap;
+    }
+
     // Check label-circle overlaps for ALL nodes (not just labeled ones)
     // This is crucial to avoid overlapping with circles at different levels
     for (const nodeData of this.allNodes) {
@@ -379,7 +390,7 @@ export class CircleAwareLabeler {
    * Monte Carlo move: randomly move a label
    */
   monteCarloMove(/** @type {number} */ currentTemperature) {
-    const i = Math.floor(this.rand.next() * this.labels.length);
+    const i = Math.floor(Math.random() * this.labels.length);
 
     const label = this.labels[i];
     const { x, y } = label;
@@ -389,14 +400,14 @@ export class CircleAwareLabeler {
 
     const oldEnergy = this.energy(i);
 
-    label.x += (this.rand.next() - 0.5) * this.maxMove;
-    label.y += (this.rand.next() - 0.5) * this.maxMove;
+    label.x += (Math.random() - 0.5) * this.maxMove;
+    label.y += (Math.random() - 0.5) * this.maxMove;
 
     const newEnergy = this.energy(i);
     const deltaEnergy = newEnergy - oldEnergy;
 
     // Accept or reject move based on energy change and temperature
-    if (this.rand.next() < Math.exp(-deltaEnergy / currentTemperature)) {
+    if (Math.random() < Math.exp(-deltaEnergy / currentTemperature)) {
       this.accept += 1;
     } else {
       label.x = xOld;
@@ -409,7 +420,7 @@ export class CircleAwareLabeler {
    * Monte Carlo rotate: rotate a label around its anchor
    */
   monteCarloRotate(/** @type {number} */ currentTemperature) {
-    const i = Math.floor(this.rand.next() * this.labels.length);
+    const i = Math.floor(Math.random() * this.labels.length);
 
     const anchor = this.anchors[i];
     const label = this.labels[i];
@@ -420,7 +431,7 @@ export class CircleAwareLabeler {
 
     const oldEnergy = this.energy(i);
 
-    const angle = (this.rand.next() - 0.5) * this.maxAngle;
+    const angle = (Math.random() - 0.5) * this.maxAngle;
 
     const s = Math.sin(angle);
     const c = Math.cos(angle);
@@ -452,7 +463,7 @@ export class CircleAwareLabeler {
     const deltaEnergy = newEnergy - oldEnergy;
 
     // Accept or reject rotation based on energy change and temperature
-    if (this.rand.next() < Math.exp(-deltaEnergy / currentTemperature)) {
+    if (Math.random() < Math.exp(-deltaEnergy / currentTemperature)) {
       this.accept += 1;
     } else {
       label.x = xOld;
@@ -575,6 +586,9 @@ export class LabelPositioner {
       ...options,
     };
 
+    // Preserved label positions from previous frame (keyed by node ID)
+    this.preservedPositions = options.preservedPositions || null;
+
     // Create canvas context for text measurement
     this.canvas = document.createElement('canvas');
     this.ctx = /** @type {CanvasRenderingContext2D} */ (
@@ -651,6 +665,7 @@ export class LabelPositioner {
           );
 
           let labelPosition, isInside;
+          let preserved = false;
 
           if (fitsInside) {
             // Place label centered inside the circle
@@ -659,6 +674,15 @@ export class LabelPositioner {
               y: y - textHeight / 2,
             };
             isInside = true;
+          } else if (
+            this.preservedPositions &&
+            this.preservedPositions.has(node.id)
+          ) {
+            // Use preserved position from previous frame
+            const prev = this.preservedPositions.get(node.id);
+            labelPosition = { x: prev.x, y: prev.y };
+            isInside = false;
+            preserved = true;
           } else {
             // Find position outside circle that doesn't overlap with other circles
             labelPosition = this.findOutsidePosition(
@@ -695,6 +719,7 @@ export class LabelPositioner {
             label,
             anchor,
             isInside,
+            preserved,
             labelPadding: nodeLabelPadding,
             linkPadding: nodeLinkPadding,
             linkLength: nodeLinkLength,
@@ -957,12 +982,18 @@ export class LabelPositioner {
    * @returns {any[]} Resolved outside labels
    */
   resolveOutsideLabelOverlaps(outsideLabels) {
-    if (outsideLabels.length <= 1) {
+    if (outsideLabels.length === 0) {
       return outsideLabels;
     }
 
-    const labels = outsideLabels.map((d) => d.label);
-    const anchors = outsideLabels.map((d) => d.anchor);
+    // Separate preserved (fixed) and new (need MC optimization) labels
+    const preservedLabels = outsideLabels.filter((d) => d.preserved);
+    const newLabels = outsideLabels.filter((d) => !d.preserved);
+
+    // If all labels are preserved, no MC needed
+    if (newLabels.length === 0) {
+      return outsideLabels;
+    }
 
     // Determine which node set to use for circle-overlap checks.
     // Prefer an explicit `allNodes` array if provided in `this.options`
@@ -997,16 +1028,22 @@ export class LabelPositioner {
       (this.options.linkLength || 0) +
       (this.options.labelPadding || 0);
 
-    // Attach per-label anchorPadding onto each Label instance (fall back to default)
-    labels.forEach((lbl, i) => {
-      const ap = outsideLabels[i] && outsideLabels[i].anchorPadding;
+    const newLabelObjs = newLabels.map((d) => d.label);
+    const newAnchors = newLabels.map((d) => d.anchor);
+
+    // Attach per-label anchorPadding onto each new Label instance
+    newLabelObjs.forEach((lbl, i) => {
+      const ap = newLabels[i] && newLabels[i].anchorPadding;
       lbl.anchorPadding = typeof ap === 'number' ? ap : defaultAnchorPadding;
     });
 
+    // Build fixed label list from preserved labels for overlap avoidance
+    const fixedLabelObjs = preservedLabels.map((d) => d.label);
+
     const labeler = new CircleAwareLabeler(
-      labels,
-      anchors,
-      nodesWithLabels, // Only nodes being labeled, not all nodes
+      newLabelObjs,
+      newAnchors,
+      nodesWithLabels,
       this.width,
       this.height,
       {
@@ -1017,17 +1054,26 @@ export class LabelPositioner {
         wOrientation: 3.0,
         maxMove: 15.0,
         maxAngle: Math.PI / 4,
+        fixedLabels: fixedLabelObjs,
       },
     );
 
-    // Run simulated annealing
+    // Run simulated annealing only on new labels
     labeler.call(60);
 
-    // Return updated label data
-    return outsideLabels.map((labelData, i) => ({
-      ...labelData,
-      label: labels[i], // Use the repositioned label
-    }));
+    // Merge results: preserved labels keep their positions, new labels get MC-optimized
+    const newLabelMap = new Map();
+    newLabels.forEach((d, i) => {
+      newLabelMap.set(d.label.key, newLabelObjs[i]);
+    });
+
+    return outsideLabels.map((labelData) => {
+      if (labelData.preserved) return labelData;
+      return {
+        ...labelData,
+        label: newLabelMap.get(labelData.label.key),
+      };
+    });
   }
 
   /**

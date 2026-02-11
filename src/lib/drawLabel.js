@@ -27,6 +27,13 @@ let _labelLayoutCache = null;
 /** @type {string|null} */
 let _labelCacheKey = null;
 
+// Previous label positions — survives cache invalidation to preserve labels across zoom/pan.
+// Stores angle from anchor to label center and distance from circle *edge* to label center.
+// This representation is zoom-invariant: when zoom changes, node radius scales but label
+// dimensions (fixed font size) do not, so we recompute position = anchor + direction * (radius + edgeDist).
+/** @type {Map<string, {angle: number, edgeDist: number, width: number, height: number, isInside: boolean}>} */
+let _previousLabelPositions = new Map();
+
 /**
  * Generate a cache key for label layout inputs.
  * Recompute only when hover state or viewport changes meaningfully.
@@ -1046,6 +1053,37 @@ export function computeLabelLayout(
     };
   });
 
+  // Build preserved positions map from previous frame.
+  // For labels that are still on screen (present in nodesWithLabels),
+  // recompute world-space positions from stored angle + edge distance using
+  // the node's current radius. This is zoom-invariant: the label maintains
+  // the same gap from the circle edge regardless of how zoom scaled the radius.
+  /** @type {Map<string, {x: number, y: number, width: number, height: number}>|null} */
+  let preservedPositions = null;
+  if (_previousLabelPositions.size > 0) {
+    const nodeMap = new Map();
+    for (const nd of nodesWithLabels) {
+      nodeMap.set(nd.node.id, nd);
+    }
+    preservedPositions = new Map();
+    for (const [nodeId, prev] of _previousLabelPositions) {
+      if (prev.isInside) continue; // inside labels are always re-centered
+      const nd = nodeMap.get(nodeId);
+      if (!nd) continue;
+      // Recompute label center from angle + current radius + edge distance
+      const centerDist = nd.radius + prev.edgeDist;
+      const labelCenterX = nd.x + Math.cos(prev.angle) * centerDist;
+      const labelCenterY = nd.y + Math.sin(prev.angle) * centerDist;
+      preservedPositions.set(nodeId, {
+        x: labelCenterX - prev.width / 2,
+        y: labelCenterY - prev.height / 2,
+        width: prev.width,
+        height: prev.height,
+      });
+    }
+    if (preservedPositions.size === 0) preservedPositions = null;
+  }
+
   const { labels, links } = calculateLabelPositions(
     nodesWithLabels,
     width,
@@ -1058,8 +1096,37 @@ export function computeLabelLayout(
       linkPadding: globalLinkPadding,
       linkLength: globalLinkLength,
       allNodes: renderedNodes,
+      preservedPositions,
     },
   );
+
+  // Save label positions as angle + edge distance for the next frame.
+  // angle: direction from anchor center to label center
+  // edgeDist: distance from circle perimeter to label center
+  // This representation is zoom-invariant because it does not bake in the
+  // current radius — on restoration we use the (potentially different) radius.
+  _previousLabelPositions = new Map();
+  const anchorLookup = new Map();
+  for (const nd of nodesWithLabels) {
+    anchorLookup.set(nd.node.id, nd);
+  }
+  for (const lbl of labels) {
+    const nd = anchorLookup.get(lbl.nodeId);
+    if (!nd) continue;
+    const labelCenterX = lbl.x + lbl.width / 2;
+    const labelCenterY = lbl.y + lbl.height / 2;
+    const dx = labelCenterX - nd.x;
+    const dy = labelCenterY - nd.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx);
+    _previousLabelPositions.set(lbl.nodeId, {
+      angle,
+      edgeDist: dist - nd.radius,
+      width: lbl.width,
+      height: lbl.height,
+      isInside: lbl.isInside,
+    });
+  }
 
   const result = {
     labels,
