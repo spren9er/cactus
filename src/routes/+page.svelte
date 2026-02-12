@@ -164,7 +164,7 @@
           <input
             id="arcSpan"
             type="range"
-            min="90"
+            min="0"
             max="360"
             step="1"
             bind:value={config.arcSpan}
