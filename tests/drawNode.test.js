@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   readStyleProp,
-  readNestedStyleProp,
   resolveDepthStyle,
   calculateNodeStyle,
   drawNode,
@@ -60,51 +59,6 @@ describe('readStyleProp', () => {
     expect(readStyleProp(depthStyle, mergedStyle, 'node', 'visible')).toBe(
       false,
     );
-  });
-});
-
-// ── readNestedStyleProp ─────────────────────────────────────────────────────
-
-describe('readNestedStyleProp', () => {
-  it('returns depth nested value when present', () => {
-    const depthStyle = { label: { inner: { textColor: '#ff0000' } } };
-    const mergedStyle = { label: { inner: { textColor: '#00ff00' } } };
-    expect(
-      readNestedStyleProp(
-        depthStyle,
-        mergedStyle,
-        'label',
-        'inner',
-        'textColor',
-      ),
-    ).toBe('#ff0000');
-  });
-
-  it('falls back to merged nested value', () => {
-    const mergedStyle = { label: { inner: { textColor: '#00ff00' } } };
-    expect(
-      readNestedStyleProp(null, mergedStyle, 'label', 'inner', 'textColor'),
-    ).toBe('#00ff00');
-  });
-
-  it('falls back to default value', () => {
-    expect(
-      readNestedStyleProp(null, null, 'label', 'inner', 'textColor', '#333'),
-    ).toBe('#333');
-  });
-
-  it('handles missing inner group in depth style', () => {
-    const depthStyle = { label: {} };
-    const mergedStyle = { label: { inner: { textColor: '#00ff00' } } };
-    expect(
-      readNestedStyleProp(
-        depthStyle,
-        mergedStyle,
-        'label',
-        'inner',
-        'textColor',
-      ),
-    ).toBe('#00ff00');
   });
 });
 
@@ -274,7 +228,7 @@ describe('calculateNodeStyle', () => {
     expect(style.isHovered).toBe(true);
   });
 
-  it('returns highlight style for link-highlighted node', () => {
+  it('returns base style for link-highlighted node when edgeNode not configured', () => {
     const highlightedIds = new Set(['a']);
     const style = calculateNodeStyle(
       { id: 'a' },
@@ -285,7 +239,34 @@ describe('calculateNodeStyle', () => {
       new Map(),
       highlightedIds,
     );
-    expect(style.fill).toBe('#dedede');
+    // No highlight.edgeNode configured → no highlight styling applied
+    expect(style.fill).toBe('#efefef');
+    expect(style.isHovered).toBe(true);
+  });
+
+  it('returns edgeNode highlight style for link-highlighted node', () => {
+    const highlightedIds = new Set(['a']);
+    const mergedStyle = {
+      ...defaultMergedStyle,
+      highlight: {
+        ...defaultMergedStyle.highlight,
+        edgeNode: {
+          fillColor: '#ffaaaa',
+          strokeColor: '#ff0000',
+        },
+      },
+    };
+    const style = calculateNodeStyle(
+      { id: 'a' },
+      0,
+      'other',
+      mergedStyle,
+      new Map(),
+      new Map(),
+      highlightedIds,
+    );
+    expect(style.fill).toBe('#ffaaaa');
+    expect(style.stroke).toBe('#ff0000');
     expect(style.isHovered).toBe(true);
   });
 

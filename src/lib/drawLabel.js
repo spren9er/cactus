@@ -221,9 +221,7 @@ export function getLabelStyle(
   const depthLabelHighlight = {};
   const innerFromLabel = labelFromDepth?.inner?.highlight ?? null;
   const innerFromDepthHighlight = depthStyle?.highlight?.label?.inner ?? null;
-  const innerLegacy = labelFromDepth?.highlight ?? null;
-  const innerRaw =
-    innerFromLabel ?? innerFromDepthHighlight ?? innerLegacy ?? null;
+  const innerRaw = innerFromLabel ?? innerFromDepthHighlight ?? null;
   if (innerRaw) {
     depthLabelHighlight.inner = {
       textColor: innerRaw?.textColor,

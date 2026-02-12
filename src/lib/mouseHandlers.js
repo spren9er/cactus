@@ -4,6 +4,7 @@
  */
 
 import { findHoveredNode } from './drawNode.js';
+import { findHoveredLeafByVoronoi } from './voronoiHover.js';
 
 /**
  * Gets coordinates from mouse or touch event
@@ -116,12 +117,22 @@ function handleHoverDetection(
   const transformedX = x - state.panX;
   const transformedY = y - state.panY;
 
-  // Find which node is being hovered/tapped
-  const newHoveredNodeId = findHoveredNode(
+  // Find which node is being hovered/tapped (exact point-in-circle)
+  let newHoveredNodeId = findHoveredNode(
     transformedX,
     transformedY,
     state.renderedNodes,
   );
+
+  // Fallback: use Voronoi-based proximity for leaf nodes
+  if (newHoveredNodeId === null && state.voronoiData) {
+    newHoveredNodeId = findHoveredLeafByVoronoi(
+      transformedX,
+      transformedY,
+      state.voronoiData,
+      state.leafHoverTolerance ?? 12,
+    );
+  }
 
   // Only re-render if hover state changed
   if (newHoveredNodeId !== state.hoveredNodeId) {

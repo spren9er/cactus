@@ -16,6 +16,7 @@ import {
   computeZoomLimitsFromNodes,
   buildLookupMaps,
 } from './layoutUtils.js';
+import { buildLeafVoronoi } from './voronoiHover.js';
 
 // ── Default options & styles ────────────────────────────────────────────────
 
@@ -194,6 +195,7 @@ const DEFAULT_STYLE = {
  * @typedef {Object} HighlightStyle
  * @property {NodeStyle} [node]
  * @property {EdgeStyle} [edge]
+ * @property {NodeStyle} [edgeNode]
  * @property {{ inner?: HighlightInnerLabelStyle, outer?: HighlightOuterLabelStyle }} [label]
  */
 
@@ -259,6 +261,11 @@ function mergeStyles(userStyles) {
       node: {
         ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.node) || {}),
         ...((s.highlight && s.highlight.node) || {}),
+      },
+      edgeNode: {
+        ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.edgeNode) ||
+          {}),
+        ...((s.highlight && s.highlight.edgeNode) || {}),
       },
       edge: {
         ...((DEFAULT_STYLE.highlight && DEFAULT_STYLE.highlight.edge) || {}),
@@ -328,6 +335,12 @@ export class CactusTree {
     /** @type {any[]} */
     this.touches = [];
     this.lastTouchDistance = 0;
+
+    // Voronoi-based leaf hover
+    /** @type {number} Extra hover radius (px in screen coords) added to each leaf's circle */
+    this.leafHoverTolerance = 12;
+    /** @type {import('./voronoiHover.js').VoronoiData | null} */
+    this._voronoiData = null;
 
     // Zoom limits
     this.minZoomLimit = 0.1;
@@ -467,6 +480,9 @@ export class CactusTree {
         this.currentZoom = this.maxZoomLimit;
       }
     }
+
+    // Build Voronoi triangulation for leaf hover tolerance
+    this._voronoiData = buildLeafVoronoi(this.renderedNodes, this.leafNodes);
   }
 
   _draw() {
@@ -692,6 +708,12 @@ export class CactusTree {
       },
       set lastTouchDistance(value) {
         self.lastTouchDistance = value;
+      },
+      get voronoiData() {
+        return self._voronoiData;
+      },
+      get leafHoverTolerance() {
+        return self.leafHoverTolerance;
       },
       pannable: self.pannable,
       zoomable: self.zoomable,

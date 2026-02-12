@@ -38,44 +38,6 @@ export function readStyleProp(
 }
 
 /**
- * Safely reads a nested style property for a two-level group (e.g. `node.highlight.fillColor`)
- * with depth override fallback.
- * @param {any|null} depthStyle - depth-specific style object (may contain groups like .node)
- * @param {any} mergedStyle - global merged styles object (may contain groups like .node)
- * @param {string} outerGroup - top-level group name (e.g., 'node')
- * @param {string} innerGroup - nested group name (e.g., 'highlight')
- * @param {string} prop - property name inside the inner group (e.g., 'fillColor')
- * @param {*} defaultValue - fallback default if neither depth nor global has the property
- * @returns {*} The resolved value (depth override > global > default)
- */
-export function readNestedStyleProp(
-  depthStyle,
-  mergedStyle,
-  outerGroup,
-  innerGroup,
-  prop,
-  defaultValue = undefined,
-) {
-  if (
-    depthStyle &&
-    depthStyle[outerGroup] &&
-    depthStyle[outerGroup][innerGroup] &&
-    depthStyle[outerGroup][innerGroup][prop] !== undefined
-  ) {
-    return depthStyle[outerGroup][innerGroup][prop];
-  }
-  if (
-    mergedStyle &&
-    mergedStyle[outerGroup] &&
-    mergedStyle[outerGroup][innerGroup] &&
-    mergedStyle[outerGroup][innerGroup][prop] !== undefined
-  ) {
-    return mergedStyle[outerGroup][innerGroup][prop];
-  }
-  return defaultValue;
-}
-
-/**
  * Resolve the applicable depth style for a node.
  * Checks positive depth cache first, then negative depths (which override positive if matched).
  * @param {number} depth
@@ -212,57 +174,69 @@ export function calculateNodeStyle(
       : false;
   const isHovered = isDirectlyHovered || isLinkedHovered;
 
+  // Determine which highlight group to use:
+  // - directly hovered node → highlight.node
+  // - edge-linked node → highlight.edgeNode
+  const highlightGroup = isDirectlyHovered ? 'node' : 'edgeNode';
+
   /**
    * Read a node highlight property with depth-specific override fallback.
-   * Precedence: depthStyle.highlight.node > depthStyle.node.highlight > mergedStyle.highlight.node > mergedStyle.node.highlight
+   * For directly hovered (group = 'node'):
+   *   Precedence: depthStyle.highlight.node > mergedStyle.highlight.node
+   * For edge-linked (group = 'edgeNode'):
+   *   Only global: mergedStyle.highlight.edgeNode (no depth-level support)
+   * @param {string} group - 'node' or 'edgeNode'
    * @param {string} prop
    * @param {*} [defaultValue]
    * @returns {*}
    */
-  function readNodeHighlightProp(prop, defaultValue) {
-    if (
-      depthStyle &&
-      depthStyle.highlight &&
-      depthStyle.highlight.node &&
-      depthStyle.highlight.node[prop] !== undefined
-    ) {
-      return depthStyle.highlight.node[prop];
-    }
-    if (
-      depthStyle &&
-      depthStyle.node &&
-      depthStyle.node.highlight &&
-      depthStyle.node.highlight[prop] !== undefined
-    ) {
-      return depthStyle.node.highlight[prop];
+  function readNodeHighlightProp(group, prop, defaultValue) {
+    if (group === 'node') {
+      if (
+        depthStyle &&
+        depthStyle.highlight &&
+        depthStyle.highlight.node &&
+        depthStyle.highlight.node[prop] !== undefined
+      ) {
+        return depthStyle.highlight.node[prop];
+      }
     }
     if (
       mergedStyle &&
       mergedStyle.highlight &&
-      mergedStyle.highlight.node &&
-      mergedStyle.highlight.node[prop] !== undefined
+      mergedStyle.highlight[group] &&
+      mergedStyle.highlight[group][prop] !== undefined
     ) {
-      return mergedStyle.highlight.node[prop];
-    }
-    if (
-      mergedStyle &&
-      mergedStyle.node &&
-      mergedStyle.node.highlight &&
-      mergedStyle.node.highlight[prop] !== undefined
-    ) {
-      return mergedStyle.node.highlight[prop];
+      return mergedStyle.highlight[group][prop];
     }
     return defaultValue;
   }
 
-  const highlightFill = readNodeHighlightProp('fillColor', undefined);
-  const highlightFillOpacity = readNodeHighlightProp('fillOpacity', undefined);
-  const highlightStroke = readNodeHighlightProp('strokeColor', undefined);
+  const highlightFill = readNodeHighlightProp(
+    highlightGroup,
+    'fillColor',
+    undefined,
+  );
+  const highlightFillOpacity = readNodeHighlightProp(
+    highlightGroup,
+    'fillOpacity',
+    undefined,
+  );
+  const highlightStroke = readNodeHighlightProp(
+    highlightGroup,
+    'strokeColor',
+    undefined,
+  );
   const highlightStrokeOpacity = readNodeHighlightProp(
+    highlightGroup,
     'strokeOpacity',
     undefined,
   );
-  const highlightStrokeWidth = readNodeHighlightProp('strokeWidth', undefined);
+  const highlightStrokeWidth = readNodeHighlightProp(
+    highlightGroup,
+    'strokeWidth',
+    undefined,
+  );
 
   const finalFill =
     isHovered && highlightFill !== undefined ? highlightFill : currentFill;
