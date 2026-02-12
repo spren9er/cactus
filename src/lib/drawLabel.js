@@ -76,6 +76,13 @@ export function clearLabelLayoutCache() {
  */
 
 /**
+ * @typedef {Object} HighlightLabelLinkStyle
+ * @property {string} [strokeColor]
+ * @property {number} [strokeOpacity]
+ * @property {number} [strokeWidth]
+ */
+
+/**
  * @typedef {Object} HighlightStyle
  * @property {Object} [inner] - inner label highlight overrides
  * @property {string} [inner.textColor]
@@ -86,6 +93,7 @@ export function clearLabelLayoutCache() {
  * @property {string} [outer.textColor]
  * @property {number} [outer.textOpacity]
  * @property {string} [outer.fontWeight]
+ * @property {HighlightLabelLinkStyle} [outer.link]
  */
 
 /**
@@ -192,19 +200,19 @@ export function getLabelStyle(
   }
   const outerHighlight = depthStyle?.highlight?.label?.outer ?? null;
   if (outerHighlight) {
+    const outerHighlightLink = outerHighlight?.link ?? null;
     depthLabelHighlight.outer = {
       textColor: outerHighlight?.textColor,
       textOpacity: outerHighlight?.textOpacity,
       fontWeight: outerHighlight?.fontWeight,
+      link: outerHighlightLink
+        ? {
+            strokeColor: outerHighlightLink?.strokeColor,
+            strokeOpacity: outerHighlightLink?.strokeOpacity,
+            strokeWidth: outerHighlightLink?.strokeWidth,
+          }
+        : undefined,
     };
-    const outerHighlightLink = outerHighlight?.link ?? null;
-    if (outerHighlightLink) {
-      depthLabelHighlight.outer.link = {
-        strokeColor: outerHighlightLink?.strokeColor,
-        strokeOpacity: outerHighlightLink?.strokeOpacity,
-        strokeWidth: outerHighlightLink?.strokeWidth,
-      };
-    }
   }
 
   return {
