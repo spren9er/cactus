@@ -91,7 +91,9 @@ const DEFAULT_STYLE = {
     },
     label: {
       inner: {},
-      outer: {},
+      outer: {
+        link: {},
+      },
     },
   },
   depths: [],
@@ -190,10 +192,18 @@ const DEFAULT_STYLE = {
  */
 
 /**
+ * @typedef {Object} HighlightLabelLinkStyle
+ * @property {string} [strokeColor]
+ * @property {number} [strokeOpacity]
+ * @property {number} [strokeWidth]
+ */
+
+/**
  * @typedef {Object} HighlightOuterLabelStyle
  * @property {string} [textColor]
  * @property {number} [textOpacity]
  * @property {string} [fontWeight]
+ * @property {HighlightLabelLinkStyle} [link]
  */
 
 /**
@@ -286,6 +296,10 @@ function mergeStyles(userStyles) {
         outer: {
           ...(DEFAULT_STYLE.highlight?.label?.outer || {}),
           ...(s.highlight?.label?.outer || {}),
+          link: {
+            ...(DEFAULT_STYLE.highlight?.label?.outer?.link || {}),
+            ...(s.highlight?.label?.outer?.link || {}),
+          },
         },
       },
     },

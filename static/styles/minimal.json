@@ -17,7 +17,7 @@
       "padding": 2,
       "link": {
         "strokeColor": "transparent",
-        "length": 10,
+        "length": 6,
         "padding": 0
       }
     }
@@ -75,7 +75,11 @@
             "textColor": "#333333"
           },
           "outer": {
-            "textColor": "#333333"
+            "textColor": "#333333",
+            "link": {
+              "strokeColor": "#dedede",
+              "strokeWidth": 1
+            }
           }
         }
       }

@@ -227,6 +227,11 @@ interface Styles {
         textColor?: string;
         textOpacity?: number;
         fontWeight?: string;
+        link?: {
+          strokeColor?: string;
+          strokeOpacity?: number;
+          strokeWidth?: number;
+        };
       };
     };
   };
@@ -316,6 +321,11 @@ interface DepthStyle {
         textColor?: string;
         textOpacity?: number;
         fontWeight?: string;
+        link?: {
+          strokeColor?: string;
+          strokeOpacity?: number;
+          strokeWidth?: number;
+        };
       };
     };
   }  

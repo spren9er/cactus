@@ -197,6 +197,14 @@ export function getLabelStyle(
       textOpacity: outerHighlight?.textOpacity,
       fontWeight: outerHighlight?.fontWeight,
     };
+    const outerHighlightLink = outerHighlight?.link ?? null;
+    if (outerHighlightLink) {
+      depthLabelHighlight.outer.link = {
+        strokeColor: outerHighlightLink?.strokeColor,
+        strokeOpacity: outerHighlightLink?.strokeOpacity,
+        strokeWidth: outerHighlightLink?.strokeWidth,
+      };
+    }
   }
 
   return {
@@ -409,6 +417,7 @@ export function shouldShowLabel(
  * @param {Array<any>} nodesWithLabels
  * @param {Map<number, any>} depthStyleCache
  * @param {Map<number, Set<string>>} negativeDepthNodes
+ * @param {Set<string>|null} [highlightedNodeIds=null]
  * @returns {void}
  */
 export function drawLabelConnectors(
@@ -418,6 +427,7 @@ export function drawLabelConnectors(
   nodesWithLabels = [],
   depthStyleCache = new Map(),
   negativeDepthNodes = new Map(),
+  highlightedNodeIds = null,
 ) {
   if (!ctx || !links || links.length === 0) return;
 
@@ -462,24 +472,34 @@ export function drawLabelConnectors(
         ...(nodeLink || {}),
       };
 
-      let highlightTextColor = undefined;
-      if (nodeData && nodeData.highlightStyle) {
+      // Apply highlight link overrides when this node is highlighted
+      const isHighlighted =
+        highlightedNodeIds &&
+        typeof highlightedNodeIds.has === 'function' &&
+        highlightedNodeIds.has(nodeId);
+
+      let highlightLink = null;
+      if (isHighlighted && nodeData && nodeData.highlightStyle) {
         const hs = nodeData.highlightStyle;
-        highlightTextColor = hs.outer?.textColor;
+        highlightLink = hs.outer?.link ?? null;
       }
+
       const color =
-        linkStyle.strokeColor ??
-        highlightTextColor ??
-        globalOuter.textColor ??
-        '#333333';
+        isHighlighted && highlightLink?.strokeColor
+          ? highlightLink.strokeColor
+          : (linkStyle.strokeColor ?? globalOuter.textColor ?? '#333333');
       const width =
-        typeof linkStyle.strokeWidth === 'number'
-          ? linkStyle.strokeWidth
-          : (globalLink.strokeWidth ?? 1);
+        isHighlighted && typeof highlightLink?.strokeWidth === 'number'
+          ? highlightLink.strokeWidth
+          : typeof linkStyle.strokeWidth === 'number'
+            ? linkStyle.strokeWidth
+            : (globalLink.strokeWidth ?? 1);
       const alpha =
-        typeof linkStyle.strokeOpacity === 'number'
-          ? linkStyle.strokeOpacity
-          : (globalLink.strokeOpacity ?? 1);
+        isHighlighted && typeof highlightLink?.strokeOpacity === 'number'
+          ? highlightLink.strokeOpacity
+          : typeof linkStyle.strokeOpacity === 'number'
+            ? linkStyle.strokeOpacity
+            : (globalLink.strokeOpacity ?? 1);
 
       setCanvasStyles(ctx, {
         strokeStyle: color,
@@ -763,9 +783,20 @@ export function computeLabelLayout(
 
     const globalHighlight = mergedStyle?.highlight?.label ?? {};
     const depthHighlight = perNodeStyle?.highlight ?? {};
+    const globalHlInner = globalHighlight.inner ?? {};
+    const depthHlInner = depthHighlight.inner ?? {};
+    const globalHlOuter = globalHighlight.outer ?? {};
+    const depthHlOuter = depthHighlight.outer ?? {};
     nodeData.highlightStyle = {
-      ...(globalHighlight || {}),
-      ...(depthHighlight || {}),
+      inner: { ...globalHlInner, ...depthHlInner },
+      outer: {
+        ...globalHlOuter,
+        ...depthHlOuter,
+        link: {
+          ...(globalHlOuter.link ?? {}),
+          ...(depthHlOuter.link ?? {}),
+        },
+      },
     };
   });
 
@@ -908,6 +939,21 @@ export function drawLabels(
     layout;
 
   if (links && links.length > 0) {
+    // Build the set of highlighted node IDs including the hovered node
+    let connectorHighlightIds = null;
+    if (hoveredNodeId) {
+      connectorHighlightIds = new Set();
+      connectorHighlightIds.add(hoveredNodeId);
+      if (highlightedNodeIds) {
+        const ids = Array.isArray(highlightedNodeIds)
+          ? highlightedNodeIds
+          : highlightedNodeIds;
+        for (const id of ids) {
+          connectorHighlightIds.add(id);
+        }
+      }
+    }
+
     drawLabelConnectors(
       ctx,
       links,
@@ -915,6 +961,7 @@ export function drawLabels(
       nodesWithLabels,
       depthStyleCache,
       negativeDepthNodes,
+      connectorHighlightIds,
     );
   }
 
