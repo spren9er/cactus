@@ -44,13 +44,7 @@
         "textColor": "#333333"
       },
       "outer": {
-        "textColor": "#333333",
-        "padding": 2,
-        "link": {
-          "strokeColor": "#333333",
-          "length": 10,
-          "padding": 0
-        }
+        "textColor": "#333333"
       }
     }
   },
@@ -81,12 +75,7 @@
             "textColor": "#333333"
           },
           "outer": {
-            "textColor": "#333333",
-            "padding": 3,
-            "link": {
-              "length": 15,
-              "padding": 0
-            }
+            "textColor": "#333333"
           }
         }
       }
