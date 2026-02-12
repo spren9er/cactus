@@ -5,6 +5,7 @@
  * - Style-driven values and per-depth overrides
  *
  * Exports:
+ * - clearLabelLayoutCache
  * - getLabelStyle
  * - shouldShowLeafLabel
  * - calculateFontSize
