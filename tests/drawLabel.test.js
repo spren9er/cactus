@@ -144,6 +144,39 @@ describe('getLabelStyle', () => {
     expect(style.outer?.fontSize).toBe(9);
     expect(style.outer?.link?.strokeColor).toBe('#cccccc');
   });
+
+  it('resolves highlight styles from negative depth', () => {
+    const negativeDepthNodes = new Map();
+    negativeDepthNodes.set(-1, new Set(['leaf1']));
+
+    const classicMergedStyle = {
+      ...mergedStyle,
+      depths: [
+        {
+          depth: -1,
+          label: { inner: { textColor: '#efefef' } },
+          highlight: {
+            label: {
+              inner: { textColor: '#ea575a' },
+              outer: { textColor: '#ea575a' },
+            },
+          },
+        },
+      ],
+    };
+
+    const style = getLabelStyle(
+      3,
+      'leaf1',
+      classicMergedStyle,
+      new Map(),
+      negativeDepthNodes,
+    );
+    expect(style.highlight).toBeDefined();
+    expect(style.highlight?.inner?.textColor).toBe('#ea575a');
+    expect(style.highlight?.outer?.textColor).toBe('#ea575a');
+    expect(style.inner?.textColor).toBe('#efefef');
+  });
 });
 
 // ── shouldShowLeafLabel ─────────────────────────────────────────────────────
@@ -333,12 +366,9 @@ describe('drawCenteredLabel', () => {
   it('applies highlight style when active', () => {
     const ctx = createMockCtx();
     const labelStyle = {
-      textColor: '#333',
-      fontFamily: 'monospace',
-      inner: { textColor: '#333' },
+      inner: { textColor: '#333', fontFamily: 'monospace' },
     };
     const highlightStyle = {
-      __hasDepthHighlight: true,
       inner: { textColor: '#ff0000', fontWeight: 'bold' },
     };
 
