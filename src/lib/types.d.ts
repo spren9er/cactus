@@ -1,0 +1,124 @@
+export interface EdgeOptions {
+  bundlingStrength?: number;
+  filterMode?: 'hide' | 'mute';
+  muteOpacity?: number;
+}
+
+export interface Options {
+  overlap?: number;
+  arcSpan?: number;
+  sizeGrowthRate?: number;
+  orientation?: number;
+  zoom?: number;
+  numLabels?: number;
+  edges?: EdgeOptions;
+}
+
+export interface ColorScale {
+  scale: string;
+  reverse?: boolean;
+}
+
+export interface NodeStyle {
+  fillColor?: string | ColorScale;
+  fillOpacity?: number;
+  strokeColor?: string | ColorScale;
+  strokeOpacity?: number;
+  strokeWidth?: number;
+}
+
+export interface EdgeStyle {
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWidth?: number;
+}
+
+export interface LabelLinkStyle {
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWidth?: number;
+  padding?: number;
+  length?: number;
+}
+
+export interface InnerLabelStyle {
+  textColor?: string;
+  textOpacity?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  minFontSize?: number;
+  maxFontSize?: number;
+}
+
+export interface OuterLabelStyle {
+  textColor?: string;
+  textOpacity?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  fontSize?: number;
+  padding?: number;
+  link?: LabelLinkStyle;
+}
+
+export interface LabelStyle {
+  inner?: InnerLabelStyle;
+  outer?: OuterLabelStyle;
+}
+
+export interface LinkStyle {
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWidth?: number;
+}
+
+export interface HighlightInnerLabelStyle {
+  textColor?: string;
+  textOpacity?: number;
+  fontWeight?: string;
+}
+
+export interface HighlightLabelLinkStyle {
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWidth?: number;
+}
+
+export interface HighlightOuterLabelStyle {
+  textColor?: string;
+  textOpacity?: number;
+  fontWeight?: string;
+  link?: HighlightLabelLinkStyle;
+}
+
+export interface HighlightStyle {
+  node?: NodeStyle;
+  edge?: EdgeStyle;
+  edgeNode?: NodeStyle;
+  label?: {
+    inner?: HighlightInnerLabelStyle;
+    outer?: HighlightOuterLabelStyle;
+  };
+}
+
+export interface DepthStyle {
+  depth: number | '*';
+  node?: NodeStyle;
+  label?: LabelStyle;
+  link?: LinkStyle;
+  highlight?: {
+    node?: NodeStyle;
+    label?: {
+      inner?: HighlightInnerLabelStyle;
+      outer?: HighlightOuterLabelStyle;
+    };
+  };
+}
+
+export interface Styles {
+  node?: NodeStyle;
+  edge?: EdgeStyle;
+  label?: LabelStyle;
+  link?: LinkStyle;
+  highlight?: HighlightStyle;
+  depths?: DepthStyle[];
+}

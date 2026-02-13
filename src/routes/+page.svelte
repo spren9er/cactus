@@ -22,7 +22,7 @@
     zoom: 1.0,
     numLabels: 20,
     bundlingStrength: 0.97,
-    filterMode: 'mute',
+    filterMode: /** @type {'hide' | 'mute'} */ ('mute'),
     muteOpacity: 0.1,
   };
 
