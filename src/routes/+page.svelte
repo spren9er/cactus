@@ -118,8 +118,8 @@
   <p>
     This modern, interactive visualization of <i>CactusTree</i> provides several
     configurable options that allow you to control the visual appearance and
-    layout behavior of the tree. The source code of the JavaScript library
-    <b>cactuz</b> is available on
+    layout behavior of the tree. The source code and documentation of the
+    JavaScript library <b>cactuz</b> is available on
     <a href="https://github.com/spren9er/cactus">GitHub</a>.
   </p>
 
