@@ -77,6 +77,19 @@
     loadDataset(selectedDataset);
   }
 
+  /** @type {HTMLDivElement} */
+  let visualization;
+
+  function downloadImage() {
+    const canvas = visualization?.querySelector('canvas');
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.download = `cactuz-${selectedDataset}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
   onMount(() => {
     loadDataset(selectedDataset);
     loadStyle(selectedStyle);
@@ -232,9 +245,32 @@
 
   <div
     class="visualization"
+    bind:this={visualization}
     style:width={`${width}px`}
     style:height={`${height}px`}
   >
+    <button
+      class="download-btn"
+      on:click={downloadImage}
+      title="Download as PNG file"
+      aria-label="Download as PNG file"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    </button>
     <Cactus
       {width}
       {height}
@@ -418,6 +454,7 @@
   }
 
   .visualization {
+    position: relative;
     background-color: #ffffff;
     border: 1px solid #dedede;
     border-radius: 12px;
@@ -427,6 +464,31 @@
     align-items: center;
     margin: 20px auto;
     width: fit-content;
+  }
+
+  .download-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 5px 6px;
+    cursor: pointer;
+    color: #cccccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background 0.2s,
+      color 0.2s;
+  }
+
+  .download-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    border: 1px solid #333333;
+    color: #333;
   }
 
   .edge-bundling-control {
