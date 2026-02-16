@@ -27,6 +27,11 @@ See [cactuz.spren9er.de](https://cactuz.spren9er.de) for a live demo and interac
 npm install cactuz
 ```
 
+The package provides two entry points:
+
+- **`cactuz`** — Exports `CactusTree`, `CactusLayout`, and the `Cactus` Svelte component.
+- **`cactuz/core`** — Exports `CactusTree` and `CactusLayout` without the Svelte component. Use this when you don't need the Svelte wrapper or want to avoid a Svelte peer dependency.
+
 ## Quick Start
 
 ```javascript
@@ -114,9 +119,9 @@ tree.destroy();
 
 ```typescript
 interface Node {
-  id: string;                 // Unique identifier
+  id: string | number;        // Unique identifier
   name: string;               // Display name
-  parent: string | null;      // Parent node ID
+  parent: string | number | null; // Parent node ID
   weight?: number;            // Optional explicit weight
 }
 ```
@@ -154,7 +159,10 @@ interface EdgeOptions {
 }
 ```
 
-**Note:** Negative values for `overlap` create gaps and nodes are connected with links.
+**Notes** 
+
+1. Negative values for `overlap` create gaps and nodes are connected with links.
+2. The `edges` option controls hierarchical edge bundling behavior. `bundlingStrength` determines how tightly edges are bundled along shared hierarchical paths — a value of `0` draws straight lines between nodes, while `1` routes edges fully along the hierarchy. When hovering over leaf nodes, edges connected to that node are highlighted, while all other edges are hidden or muted (depending on `filterMode`). This allows for better readability in dense visualizations. `'hide'` removes unrelated edges entirely, while `'mute'` renders them at reduced opacity controlled by `muteOpacity`.
 
 #### Styles
 
@@ -255,23 +263,7 @@ interface Styles {
 
 #### Depth-Specific Styling
 
-Each item in `styles.depths` must include a `depth` integer (or a wildcard `'*'`; see below). The node with `depth` 0 is the root of the tree.
-
-Positive integers (1, 2, 3, ...) refer to deeper levels away from the root:
-  - 1 = direct children of the root,
-  - 2 = grandchildren of the root,
-  - and so on.
-
-Use positive-depth overrides to style internal levels progressively (for example, a different node color for level 2).
-
-Negative integers (-1, -2, -3, ...) are supported as a convenience for leaf-oriented overrides:
-  - -1 = set of all leaves (nodes with no children),
-  - -2 = set of parents of leaves (one level up from leaves),
-  - and so on.
-
-These negative-depth entries are not absolute numeric depths in the tree; instead the implementation maps them to groups of nodes computed from the layout. This is useful when you want to style leaves or near-leaf levels without knowing their positive depth value.
-
-Depth-based styles are applied in the natural order given in the `depths` array. When multiple entries match a node (e.g. a wildcard `'*'` and a numeric depth), later entries override earlier ones. This means the order you define entries in determines their precedence.
+Depth-specific styles allow you to customize the appearance of nodes, labels, links, etc. based on their depth in the tree hierarchy. This is configured through the `styles.depths` array.
 
 ```typescript
 interface ColorScale {
@@ -347,6 +339,24 @@ interface DepthStyle {
   }  
 }
 ```
+
+Each item in `styles.depths` must include a `depth` integer (or a wildcard `'*'`; see below). The node with `depth` 0 is the root of the tree.
+
+Positive integers (1, 2, 3, ...) refer to deeper levels away from the root:
+  - 1 = direct children of the root,
+  - 2 = grandchildren of the root,
+  - and so on.
+
+Use positive-depth overrides to style internal levels progressively (for example, a different node color for level 2).
+
+Negative integers (-1, -2, -3, ...) are supported as a convenience for leaf-oriented overrides:
+  - -1 = set of all leaves (nodes with no children),
+  - -2 = set of parents of leaves (one level up from leaves),
+  - and so on.
+
+These negative-depth entries are not absolute numeric depths in the tree; instead the implementation maps them to groups of nodes computed from the layout. This is useful when you want to style leaves or near-leaf levels without knowing their positive depth value.
+
+Depth-based styles are applied in the natural order given in the `depths` array. When multiple entries match a node, later entries override earlier ones. This means the order you define entries in determines their precedence.
 
 #### Wildcard Depth Styling
 
@@ -454,61 +464,80 @@ const tree = new CactusTree(canvas, {
   edges,
   styles: {
     node: {
-      strokeColor: '#333333'
+      fillOpacity: 0.97,
+      strokeColor: '#333333',
+      strokeWidth: 0.5,
     },
     edge: {
-      strokeColor: '#ffffff'
+      strokeColor: '#ffffff',
+    },
+    edgeNode: {
+      fillOpacity: 0.97,
+      strokeOpacity: 1,
     },
     link: {
-      strokeColor: '#333333'
+      strokeColor: '#333333',
     },
     label: {
       inner: {
         textColor: '#efefef',
         fontFamily: 'monospace',
         minFontSize: 9,
-        maxFontSize: 14
+        maxFontSize: 14,
       },
       outer: {
-        textColor: '#333333',
+        textColor: '#6B7280',
         textOpacity: 1,
         fontFamily: 'monospace',
         fontSize: 9,
         link: {
-          strokeColor: '#cccccc'
-        }
-      }
+          strokeColor: '#cccccc',
+        },
+      },
+    },
+    highlight: {
+      node: {
+        fillOpacity: 0.97,
+        strokeOpacity: 1,
+      },
+      edgeNode: {
+        fillColor: '#efefef',
+        strokeColor: '#333333',
+        strokeWidth: 1,
+      },
     },
     depths: [
       {
+        depth: '*',
+        node: {
+          fillColor: { scale: 'magma' },
+        },
+      },
+      {
         depth: -1,
+        node: {
+          fillOpacity: 0.75,
+          strokeOpacity: 0.75,
+        },
         label: {
           inner: {
-            textColor: '#333333'
-          }
+            textColor: '#333333',
+          },
         },
         highlight: {
           node: {
-            fillColor: '#ffffff',
-            strokeColor: '#333333',
-            strokeWidth: 1.5
+            strokeWidth: 2,
           },
           label: {
             inner: {
-              textColor: '#333333'
-            }
-          }
-        }
+              textColor: '#333333',
+            },
+          },
+        },
       },
-      {
-        depth: '*',
-         node: {
-           fillColor: { scale: 'magma' }
-         }
-       }
-    ]
-  }
-);
+    ],
+  },
+});
 ```
 
 ### Negative Overlap
@@ -527,9 +556,7 @@ const tree = new CactusTree(canvas, {
 });
 ```
 
-For a negative overlap parameter, nodes are connected by links (see top-level `links` for styling).
-
-When hovering over leaf nodes, edges connected to that node are highlighted, while all other edges are hidden or muted (depending on `filterMode`). This allows for better readability in dense visualizations.
+For a negative overlap parameter, nodes are connected by links (see top-level `link` for styling).
 
 ## Svelte Component
 
