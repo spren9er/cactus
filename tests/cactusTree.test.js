@@ -39,23 +39,25 @@ function createMockCanvas() {
     globalCompositeOperation: 'source-over',
   };
 
-  return {
-    canvas: /** @type {any} */ ({
-      width: 0,
-      height: 0,
-      style: { width: '', height: '' },
-      getContext: vi.fn(() => mockCtx),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      getBoundingClientRect: vi.fn(() => ({
-        left: 0,
-        top: 0,
-        width: 800,
-        height: 600,
-      })),
-    }),
-    ctx: mockCtx,
-  };
+  const canvas = /** @type {any} */ ({
+    width: 0,
+    height: 0,
+    style: { width: '', height: '' },
+    getContext: vi.fn(() => mockCtx),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    getBoundingClientRect: vi.fn(() => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+    })),
+  });
+
+  // drawLabels accesses ctx.canvas for label layout dimensions
+  /** @type {any} */ (mockCtx).canvas = canvas;
+
+  return { canvas, ctx: mockCtx };
 }
 
 const sampleNodes = [
@@ -85,6 +87,7 @@ describe('CactusTree constructor', () => {
     expect(tree.edges).toEqual([]);
     expect(tree.pannable).toBe(true);
     expect(tree.zoomable).toBe(true);
+    expect(tree.collapsible).toBe(true);
 
     tree.destroy();
   });
@@ -470,5 +473,301 @@ describe('CactusTree.destroy', () => {
       tree.destroy();
       tree.destroy();
     }).not.toThrow();
+  });
+});
+
+// ── Collapse/Expand feature ─────────────────────────────────────────────────
+
+describe('CactusTree collapse feature', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('defaults collapsible to true', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, { width: 800, height: 600 });
+
+    expect(tree.collapsible).toBe(true);
+
+    tree.destroy();
+  });
+
+  it('accepts collapsible: false in config', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      collapsible: false,
+    });
+
+    expect(tree.collapsible).toBe(false);
+
+    tree.destroy();
+  });
+
+  it('defaults collapseDuration to 300', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, { width: 800, height: 600 });
+
+    expect(tree.mergedOptions.collapseDuration).toBe(300);
+
+    tree.destroy();
+  });
+
+  it('allows custom collapseDuration via options', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      options: { collapseDuration: 200 },
+    });
+
+    expect(tree.mergedOptions.collapseDuration).toBe(200);
+
+    tree.destroy();
+  });
+
+  it('initializes collapse state as empty', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, { width: 800, height: 600 });
+
+    expect(tree.collapsedNodeIds.size).toBe(0);
+    expect(tree._collapsedDescendantIds.size).toBe(0);
+    expect(tree._animatedPositions.size).toBe(0);
+    expect(tree._isCollapseAnimating).toBe(false);
+
+    tree.destroy();
+  });
+
+  it('_handleNodeClick does nothing when collapsible is false', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+      collapsible: false,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    tree._handleNodeClick('a');
+
+    expect(tree.collapsedNodeIds.size).toBe(0);
+
+    tree.destroy();
+  });
+
+  it('_handleNodeClick does nothing for leaf nodes', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    tree._handleNodeClick('c');
+
+    expect(tree.collapsedNodeIds.size).toBe(0);
+
+    tree.destroy();
+  });
+
+  it('_handleNodeClick adds non-leaf to collapsedNodeIds', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    tree._handleNodeClick('a');
+
+    expect(tree.collapsedNodeIds.has('a')).toBe(true);
+
+    tree.destroy();
+  });
+
+  it('_handleNodeClick toggles collapse state', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    // First click: collapse
+    tree._handleNodeClick('a');
+    expect(tree.collapsedNodeIds.has('a')).toBe(true);
+
+    // Second click: expand
+    tree._handleNodeClick('a');
+    expect(tree.collapsedNodeIds.has('a')).toBe(false);
+
+    tree.destroy();
+  });
+
+  it('_handleNodeClick populates _collapsedDescendantIds on collapse', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    tree._handleNodeClick('a');
+
+    // 'a' has children 'c' and 'd'
+    expect(tree._collapsedDescendantIds.has('c')).toBe(true);
+    expect(tree._collapsedDescendantIds.has('d')).toBe(true);
+    expect(tree._collapsedDescendantIds.has('a')).toBe(false);
+
+    tree.destroy();
+  });
+
+  it('_getDrawableNodes returns renderedNodes when nothing animated', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    const drawableNodes = tree._getDrawableNodes();
+    expect(drawableNodes).toBe(tree.renderedNodes);
+
+    tree.destroy();
+  });
+
+  it('_getDrawableNodes applies animated position overrides', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    // Manually set an animated position override
+    tree._animatedPositions.set('c', { x: 999, y: 888 });
+
+    const drawableNodes = tree._getDrawableNodes();
+
+    // Should be a new array (not the same reference)
+    expect(drawableNodes).not.toBe(tree.renderedNodes);
+
+    const overriddenNode = drawableNodes.find((n) => n.id === 'c');
+    expect(overriddenNode.x).toBe(999);
+    expect(overriddenNode.y).toBe(888);
+
+    // Non-overridden nodes keep original positions
+    const normalNode = drawableNodes.find((n) => n.id === 'a');
+    const originalNode = tree.renderedNodes.find((n) => n.id === 'a');
+    expect(normalNode.x).toBe(originalNode.x);
+    expect(normalNode.y).toBe(originalNode.y);
+
+    tree.destroy();
+  });
+
+  it('_buildDrawableNodeMap creates map from node array', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, { width: 800, height: 600 });
+
+    const nodes = [
+      { id: 'x', x: 10, y: 20 },
+      { id: 'y', x: 30, y: 40 },
+    ];
+    const map = tree._buildDrawableNodeMap(nodes);
+
+    expect(map.size).toBe(2);
+    expect(map.get('x')).toEqual({ id: 'x', x: 10, y: 20 });
+    expect(map.get('y')).toEqual({ id: 'y', x: 30, y: 40 });
+
+    tree.destroy();
+  });
+
+  it('_rebuildCollapsedDescendantIds rebuilds from collapsedNodeIds', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    // Manually add to collapsedNodeIds and rebuild
+    tree.collapsedNodeIds.add('root');
+    tree._rebuildCollapsedDescendantIds();
+
+    expect(tree._collapsedDescendantIds.has('a')).toBe(true);
+    expect(tree._collapsedDescendantIds.has('b')).toBe(true);
+    expect(tree._collapsedDescendantIds.has('c')).toBe(true);
+    expect(tree._collapsedDescendantIds.has('d')).toBe(true);
+    expect(tree._collapsedDescendantIds.has('root')).toBe(false);
+
+    tree.destroy();
+  });
+
+  it('update clears collapse state when nodes change', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, {
+      width: 800,
+      height: 600,
+      nodes: sampleNodes,
+      edges: sampleEdges,
+    });
+
+    vi.advanceTimersByTime(100);
+
+    // Collapse a node
+    tree._handleNodeClick('a');
+    expect(tree.collapsedNodeIds.size).toBeGreaterThan(0);
+
+    // Update with new nodes
+    const newNodes = [
+      { id: 'root', name: 'Root', parent: null },
+      { id: 'x', name: 'X', parent: 'root' },
+    ];
+    tree.update({ nodes: newNodes });
+
+    expect(tree.collapsedNodeIds.size).toBe(0);
+    expect(tree._collapsedDescendantIds.size).toBe(0);
+    expect(tree._animatedPositions.size).toBe(0);
+
+    tree.destroy();
+  });
+
+  it('update with collapsible updates the property', () => {
+    const { canvas } = createMockCanvas();
+    const tree = new CactusTree(canvas, { width: 800, height: 600 });
+
+    expect(tree.collapsible).toBe(true);
+
+    tree.update({ collapsible: false });
+    expect(tree.collapsible).toBe(false);
+
+    tree.update({ collapsible: true });
+    expect(tree.collapsible).toBe(true);
+
+    tree.destroy();
   });
 });

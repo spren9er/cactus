@@ -76,16 +76,17 @@ new CactusTree(canvas, config)
 
 #### Config
 
-| Property   | Type      | Required | Default | Description                        |
-| ---------- | --------- |:--------:|:-------:| ---------------------------------- |
-| `width`    | `number`  | yes      | -       | Canvas width in pixels             |
-| `height`   | `number`  | yes      | -       | Canvas height in pixels            |
-| `nodes`    | `Node[]`  | yes      | -       | Array of hierarchical nodes        |
-| `edges`    | `Edge[]`  | no       | `[]`    | Array of connections between nodes |
-| `options`  | `Options` | no       | `{}`    | Layout and behavior configuration  |
-| `styles`   | `Styles`  | no       | `{}`    | Visual styling configuration       |
-| `pannable` | `boolean` | no       | `true`  | Enable pan interaction             |
-| `zoomable` | `boolean` | no       | `true`  | Enable zoom interaction            |
+| Property      | Type      | Required | Default | Description                        |
+| ------------- | --------- |:--------:|:-------:| ---------------------------------- |
+| `width`       | `number`  | yes      | -       | Canvas width in pixels             |
+| `height`      | `number`  | yes      | -       | Canvas height in pixels            |
+| `nodes`       | `Node[]`  | yes      | -       | Array of hierarchical nodes        |
+| `edges`       | `Edge[]`  | no       | `[]`    | Array of connections between nodes |
+| `options`     | `Options` | no       | `{}`    | Layout and behavior configuration  |
+| `styles`      | `Styles`  | no       | `{}`    | Visual styling configuration       |
+| `pannable`    | `boolean` | no       | `true`  | Enable pan interaction             |
+| `zoomable`    | `boolean` | no       | `true`  | Enable zoom interaction            |
+| `collapsible` | `boolean` | no       | `true`  | Enable collapse/expand on click    |
 
 #### Methods
 
@@ -145,6 +146,7 @@ interface Options {
   orientation?: number;       // Root orientation in radians (default: π/2)
   zoom?: number;              // Layout zoom factor (default: 1.0)
   numLabels?: number;         // Number of labels (default: 20)
+  collapseDuration?: number;  // Collapse/expand animation duration in ms (default: 300)
   edges?: EdgeOptions;        // Edge-specific options
 }
 
@@ -580,4 +582,4 @@ For Svelte applications, **cactuz** also exports a ready-to-use `Cactus` Svelte 
 <Cactus width={800} height={600} {nodes} {edges} />
 ```
 
-The component accepts the same props as the `CactusTree` config: `width`, `height`, `nodes`, `edges`, `options`, `styles`, `pannable`, and `zoomable`. It automatically re-renders when any prop changes.
+The component accepts the same props as the `CactusTree` config: `width`, `height`, `nodes`, `edges`, `options`, `styles`, `pannable`, `zoomable`, and `collapsible`. It automatically re-renders when any prop changes.

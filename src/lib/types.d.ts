@@ -11,6 +11,7 @@ export interface Options {
   orientation?: number;
   zoom?: number;
   numLabels?: number;
+  collapseDuration?: number;
   edges?: EdgeOptions;
 }
 

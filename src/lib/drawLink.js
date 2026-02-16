@@ -17,6 +17,7 @@ import { resolveDepthStyle } from './drawNode.js';
  * @param {Map<number, any>} depthStyleCache
  * @param {number} overlap
  * @param {Map<number, Set<string>>} negativeDepthNodes
+ * @param {Set<string>} [excludedNodeIds] - Node IDs to skip when drawing links
  */
 export function drawConnectingLinks(
   ctx,
@@ -26,6 +27,7 @@ export function drawConnectingLinks(
   depthStyleCache,
   overlap,
   negativeDepthNodes,
+  excludedNodeIds,
 ) {
   if (!ctx || overlap >= 0 || !renderedNodes || renderedNodes.length === 0)
     return;
@@ -35,6 +37,8 @@ export function drawConnectingLinks(
     const children =
       (parentToChildrenNodeMap && parentToChildrenNodeMap.get(node.id)) || [];
     for (const child of children) {
+      const childId = child.node ? child.node.id : child.id;
+      if (excludedNodeIds && excludedNodeIds.has(childId)) continue;
       const depthStyle = resolveDepthStyle(
         depth,
         node.id,

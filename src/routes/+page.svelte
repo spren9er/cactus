@@ -271,6 +271,7 @@
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
     </button>
+
     <Cactus
       {width}
       {height}
@@ -283,6 +284,7 @@
         orientation: (config.orientation * Math.PI) / 180,
         zoom: config.zoom,
         numLabels: config.numLabels,
+        collapseDuration: 300,
         edges: {
           bundlingStrength: config.bundlingStrength,
           filterMode: config.filterMode,

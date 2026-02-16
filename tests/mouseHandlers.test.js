@@ -124,6 +124,33 @@ describe('createMouseDownHandler', () => {
 
     expect(state.isDragging).toBe(false);
   });
+
+  it('records _mouseDownX and _mouseDownY for click detection', () => {
+    const state = createMockState({
+      _mouseDownX: 0,
+      _mouseDownY: 0,
+    });
+    const handler = createMouseDownHandler(state);
+
+    handler(createMockMouseEvent(42, 84));
+
+    expect(state._mouseDownX).toBe(42);
+    expect(state._mouseDownY).toBe(84);
+  });
+
+  it('records mousedown position even when pannable is false', () => {
+    const state = createMockState({
+      pannable: false,
+      _mouseDownX: 0,
+      _mouseDownY: 0,
+    });
+    const handler = createMouseDownHandler(state);
+
+    handler(createMockMouseEvent(42, 84));
+
+    expect(state._mouseDownX).toBe(42);
+    expect(state._mouseDownY).toBe(84);
+  });
 });
 
 // ── createMouseUpHandler ────────────────────────────────────────────────────
@@ -133,9 +160,111 @@ describe('createMouseUpHandler', () => {
     const state = createMockState({ isDragging: true });
     const handler = createMouseUpHandler(state);
 
-    handler();
+    const event = /** @type {any} */ ({
+      clientX: 0,
+      clientY: 0,
+    });
+    handler(event);
 
     expect(state.isDragging).toBe(false);
+  });
+
+  it('calls onNodeClick when click displacement is small and node found', () => {
+    const onNodeClick = vi.fn();
+    // renderedNodes with a node at (100, 100) with radius 50
+    const state = createMockState({
+      _mouseDownX: 100,
+      _mouseDownY: 100,
+      panX: 0,
+      panY: 0,
+      onNodeClick,
+      renderedNodes: [
+        { id: 'node1', x: 100, y: 100, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createMouseUpHandler(state);
+
+    // Mouse up at same position (0 displacement)
+    handler(createMockMouseEvent(100, 100));
+
+    expect(onNodeClick).toHaveBeenCalledWith('node1');
+  });
+
+  it('does not call onNodeClick when displacement exceeds threshold', () => {
+    const onNodeClick = vi.fn();
+    const state = createMockState({
+      _mouseDownX: 100,
+      _mouseDownY: 100,
+      panX: 0,
+      panY: 0,
+      onNodeClick,
+      renderedNodes: [
+        { id: 'node1', x: 110, y: 110, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createMouseUpHandler(state);
+
+    // Mouse up far from mousedown (displacement > 5px)
+    handler(createMockMouseEvent(110, 110));
+
+    expect(onNodeClick).not.toHaveBeenCalled();
+  });
+
+  it('does not call onNodeClick when no node is at click position', () => {
+    const onNodeClick = vi.fn();
+    const state = createMockState({
+      _mouseDownX: 500,
+      _mouseDownY: 500,
+      panX: 0,
+      panY: 0,
+      onNodeClick,
+      renderedNodes: [
+        { id: 'node1', x: 100, y: 100, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createMouseUpHandler(state);
+
+    // Click far from any node
+    handler(createMockMouseEvent(500, 500));
+
+    expect(onNodeClick).not.toHaveBeenCalled();
+  });
+
+  it('does not call onNodeClick when onNodeClick is not provided', () => {
+    const state = createMockState({
+      _mouseDownX: 100,
+      _mouseDownY: 100,
+      panX: 0,
+      panY: 0,
+      renderedNodes: [
+        { id: 'node1', x: 100, y: 100, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createMouseUpHandler(state);
+
+    // Should not throw even without onNodeClick
+    expect(() => handler(createMockMouseEvent(100, 100))).not.toThrow();
+  });
+
+  it('accounts for panX/panY when finding clicked node', () => {
+    const onNodeClick = vi.fn();
+    // Node is at (100, 100) in world space, but canvas is panned by (50, 50)
+    const state = createMockState({
+      _mouseDownX: 150,
+      _mouseDownY: 150,
+      panX: 50,
+      panY: 50,
+      onNodeClick,
+      renderedNodes: [
+        { id: 'node1', x: 100, y: 100, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createMouseUpHandler(state);
+
+    // Click at (150, 150) on canvas, which is (100, 100) in world space
+    handler(createMockMouseEvent(150, 150));
+
+    expect(onNodeClick).toHaveBeenCalledWith('node1');
   });
 });
 
@@ -276,6 +405,24 @@ describe('createTouchStartHandler', () => {
 
     expect(state.lastTouchDistance).toBeGreaterThan(0);
   });
+
+  it('records _touchStartX and _touchStartY for tap detection', () => {
+    const state = createMockState({
+      _touchStartX: 0,
+      _touchStartY: 0,
+    });
+    const handler = createTouchStartHandler(state, vi.fn());
+
+    const event = /** @type {any} */ ({
+      touches: [{ clientX: 75, clientY: 125 }],
+      preventDefault: vi.fn(),
+    });
+
+    handler(event);
+
+    expect(state._touchStartX).toBe(75);
+    expect(state._touchStartY).toBe(125);
+  });
 });
 
 // ── createTouchEndHandler ───────────────────────────────────────────────────
@@ -310,6 +457,72 @@ describe('createTouchEndHandler', () => {
     expect(state.isDragging).toBe(true);
     expect(state.lastMouseX).toBe(100);
     expect(state.lastTouchDistance).toBe(0);
+  });
+
+  it('calls onNodeClick on tap (minimal touch movement)', () => {
+    const onNodeClick = vi.fn();
+    const state = createMockState({
+      _touchStartX: 100,
+      _touchStartY: 100,
+      panX: 0,
+      panY: 0,
+      onNodeClick,
+      renderedNodes: [
+        { id: 'node1', x: 100, y: 100, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createTouchEndHandler(state);
+
+    const event = /** @type {any} */ ({
+      touches: [],
+      changedTouches: [{ clientX: 100, clientY: 100 }],
+      preventDefault: vi.fn(),
+    });
+
+    handler(event);
+
+    expect(onNodeClick).toHaveBeenCalledWith('node1');
+  });
+
+  it('does not call onNodeClick when touch moved too far', () => {
+    const onNodeClick = vi.fn();
+    const state = createMockState({
+      _touchStartX: 100,
+      _touchStartY: 100,
+      panX: 0,
+      panY: 0,
+      onNodeClick,
+      renderedNodes: [
+        { id: 'node1', x: 110, y: 110, radius: 50, node: { id: 'node1' } },
+      ],
+    });
+    const handler = createTouchEndHandler(state);
+
+    const event = /** @type {any} */ ({
+      touches: [],
+      changedTouches: [{ clientX: 110, clientY: 110 }],
+      preventDefault: vi.fn(),
+    });
+
+    handler(event);
+
+    expect(onNodeClick).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when changedTouches is missing', () => {
+    const state = createMockState({
+      _touchStartX: 100,
+      _touchStartY: 100,
+      onNodeClick: vi.fn(),
+    });
+    const handler = createTouchEndHandler(state);
+
+    const event = /** @type {any} */ ({
+      touches: [],
+      preventDefault: vi.fn(),
+    });
+
+    expect(() => handler(event)).not.toThrow();
   });
 });
 

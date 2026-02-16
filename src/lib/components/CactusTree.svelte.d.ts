@@ -10,6 +10,7 @@ interface Props {
   styles?: Styles;
   pannable?: boolean;
   zoomable?: boolean;
+  collapsible?: boolean;
 }
 
 declare const CactusTree: Component<Props>;

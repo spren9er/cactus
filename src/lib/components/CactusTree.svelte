@@ -12,6 +12,7 @@
     styles = {},
     pannable = true,
     zoomable = true,
+    collapsible = true,
   } = $props();
 
   /** @type {HTMLCanvasElement} */
@@ -30,6 +31,7 @@
       styles,
       pannable,
       zoomable,
+      collapsible,
     });
 
     return () => {
@@ -48,6 +50,7 @@
       styles,
       pannable,
       zoomable,
+      collapsible,
     });
   });
 </script>

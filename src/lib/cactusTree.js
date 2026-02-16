@@ -17,6 +17,11 @@ import {
   buildLookupMaps,
 } from './layoutUtils.js';
 import { buildLeafVoronoi } from './voronoiHover.js';
+import {
+  easeInOutCubic,
+  getDescendantIds,
+  computeCollapsedPositions,
+} from './collapseAnimation.js';
 
 // ── Default options & styles ────────────────────────────────────────────────
 
@@ -27,6 +32,7 @@ const DEFAULT_OPTIONS = {
   orientation: Math.PI / 2,
   zoom: 1.0,
   numLabels: 20,
+  collapseDuration: 300,
   edges: {
     bundlingStrength: 0.97,
     filterMode: 'mute',
@@ -179,7 +185,7 @@ function mergeStyles(userStyles) {
 export class CactusTree {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: Options, styles?: Styles, pannable?: boolean, zoomable?: boolean }} config
+   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: Options, styles?: Styles, pannable?: boolean, zoomable?: boolean, collapsible?: boolean }} config
    */
   constructor(canvas, config = {}) {
     this.canvas = canvas;
@@ -192,6 +198,7 @@ export class CactusTree {
     this.edges = config.edges ?? [];
     this.pannable = config.pannable ?? true;
     this.zoomable = config.zoomable ?? true;
+    this.collapsible = config.collapsible ?? true;
 
     // Merged options / styles
     this.mergedOptions = mergeOptions(config.options);
@@ -235,6 +242,17 @@ export class CactusTree {
     // Animation frame id
     this._animationFrameId = null;
 
+    // Collapse state
+    /** @type {Set<string>} */
+    this.collapsedNodeIds = new Set();
+    /** @type {Set<string>} Node IDs excluded from labeling (descendants of collapsed nodes) */
+    this._collapsedDescendantIds = new Set();
+    /** @type {Map<string, {x: number, y: number}>} */
+    this._animatedPositions = new Map();
+    /** @type {number|null} */
+    this._collapseAnimFrameId = null;
+    this._isCollapseAnimating = false;
+
     // Event handler refs (for cleanup)
     this._boundHandlers = null;
 
@@ -248,7 +266,7 @@ export class CactusTree {
   /**
    * Update configuration. Any subset of the config properties may be provided.
    * Triggers a full re-render.
-   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: Options, styles?: Styles, pannable?: boolean, zoomable?: boolean }} config
+   * @param {{ width?: number, height?: number, nodes?: any[], edges?: any[], options?: Options, styles?: Styles, pannable?: boolean, zoomable?: boolean, collapsible?: boolean }} config
    */
   update(config) {
     if (!config) return;
@@ -268,6 +286,14 @@ export class CactusTree {
         this.currentZoom = 1;
         this.panX = 0;
         this.panY = 0;
+        this.collapsedNodeIds.clear();
+        this._collapsedDescendantIds.clear();
+        this._animatedPositions.clear();
+        if (this._collapseAnimFrameId) {
+          cancelAnimationFrame(this._collapseAnimFrameId);
+          this._collapseAnimFrameId = null;
+        }
+        this._isCollapseAnimating = false;
       }
     }
     if (config.edges !== undefined) this.edges = config.edges;
@@ -278,6 +304,9 @@ export class CactusTree {
     if (config.zoomable !== undefined) {
       this.zoomable = config.zoomable;
       needsHandlerRebind = true;
+    }
+    if (config.collapsible !== undefined) {
+      this.collapsible = config.collapsible;
     }
 
     if (needsHandlerRebind) {
@@ -311,6 +340,11 @@ export class CactusTree {
     if (this._animationFrameId) {
       cancelAnimationFrame(this._animationFrameId);
       this._animationFrameId = null;
+    }
+
+    if (this._collapseAnimFrameId) {
+      cancelAnimationFrame(this._collapseAnimFrameId);
+      this._collapseAnimFrameId = null;
     }
   }
 
@@ -369,10 +403,32 @@ export class CactusTree {
 
     // Build Voronoi triangulation for leaf hover tolerance
     this._voronoiData = buildLeafVoronoi(this.renderedNodes, this.leafNodes);
+
+    // Re-apply collapsed positions and descendant exclusion after layout recalculation
+    if (this.collapsedNodeIds.size > 0 && !this._isCollapseAnimating) {
+      this._animatedPositions = computeCollapsedPositions(
+        this.collapsedNodeIds,
+        this.parentToChildrenNodeMap,
+        this.nodeIdToRenderedNodeMap,
+      );
+      this._rebuildCollapsedDescendantIds();
+    }
   }
 
   _draw() {
     if (!this.canvas || !this.ctx) return;
+
+    const drawableNodes = this._getDrawableNodes();
+    const drawableNodeMap =
+      this._animatedPositions.size > 0
+        ? this._buildDrawableNodeMap(drawableNodes)
+        : this.nodeIdToRenderedNodeMap;
+
+    // Nodes excluding collapsed descendants (for links and labels)
+    const visibleNodes =
+      this._collapsedDescendantIds.size > 0
+        ? drawableNodes.filter((n) => !this._collapsedDescendantIds.has(n.id))
+        : drawableNodes;
 
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.save();
@@ -381,18 +437,21 @@ export class CactusTree {
     // Draw connecting parent->child links (only when overlap < 0)
     drawConnectingLinks(
       this.ctx,
-      this.renderedNodes,
+      visibleNodes,
       this.parentToChildrenNodeMap,
       this.mergedStyle,
       this.depthStyleCache,
       this.mergedOptions.overlap,
       this.negativeDepthNodes,
+      this._collapsedDescendantIds.size > 0
+        ? this._collapsedDescendantIds
+        : undefined,
     );
 
     // Compute visible edge node ids
     const edgeNodeIds = drawEdge.computeVisibleEdgeNodeIds(
       this.edges,
-      this.nodeIdToRenderedNodeMap,
+      drawableNodeMap,
       this.hoveredNodeId,
     );
 
@@ -443,7 +502,7 @@ export class CactusTree {
     // Draw non-leaf nodes
     drawNodes(
       this.ctx,
-      this.renderedNodes,
+      drawableNodes,
       this.leafNodes,
       this.hoveredNodeId,
       this.mergedStyle,
@@ -458,7 +517,7 @@ export class CactusTree {
     drawEdge.drawEdges(
       this.ctx,
       this.edges,
-      this.nodeIdToRenderedNodeMap,
+      drawableNodeMap,
       this.hierarchicalPathCache,
       this.mergedStyle,
       this.hoveredNodeId,
@@ -472,7 +531,7 @@ export class CactusTree {
     // Draw leaf nodes (on top of edges)
     drawNodes(
       this.ctx,
-      this.renderedNodes,
+      drawableNodes,
       this.leafNodes,
       this.hoveredNodeId,
       this.mergedStyle,
@@ -483,10 +542,10 @@ export class CactusTree {
       'leaf',
     );
 
-    // Draw labels
+    // Draw labels (collapsed descendants already excluded from visibleNodes)
     drawLabels(
       this.ctx,
-      this.renderedNodes,
+      visibleNodes,
       this.leafNodes,
       this.hoveredNodeId,
       nodeHighlightedIds,
@@ -499,6 +558,202 @@ export class CactusTree {
     );
 
     this.ctx.restore();
+  }
+
+  /**
+   * Returns renderedNodes with animated position overrides applied.
+   * @returns {any[]}
+   */
+  _getDrawableNodes() {
+    if (this._animatedPositions.size === 0) {
+      return this.renderedNodes;
+    }
+
+    return this.renderedNodes.map((node) => {
+      const override = this._animatedPositions.get(node.id);
+      if (override) {
+        return { ...node, x: override.x, y: override.y };
+      }
+      return node;
+    });
+  }
+
+  /**
+   * Builds a temporary node map from drawable nodes for edge coordinate lookups.
+   * @param {any[]} drawableNodes
+   * @returns {Map<string, any>}
+   */
+  _buildDrawableNodeMap(drawableNodes) {
+    const map = new Map();
+    for (const node of drawableNodes) {
+      map.set(node.id, node);
+    }
+    return map;
+  }
+
+  /**
+   * Handle click/tap on a node: toggle collapse/expand of its subtree.
+   * @param {string} nodeId
+   */
+  _handleNodeClick(nodeId) {
+    if (!this.collapsible) return;
+    if (this.leafNodes.has(nodeId)) return;
+
+    const isCollapsed = this.collapsedNodeIds.has(nodeId);
+    const descendantIds = getDescendantIds(
+      nodeId,
+      this.parentToChildrenNodeMap,
+    );
+    if (descendantIds.length === 0) return;
+
+    const anchorNode = this.nodeIdToRenderedNodeMap.get(nodeId);
+    if (!anchorNode) return;
+
+    if (isCollapsed) {
+      this.collapsedNodeIds.delete(nodeId);
+    } else {
+      this.collapsedNodeIds.add(nodeId);
+      // On collapse: exclude descendants from labeling BEFORE animation
+      this._rebuildCollapsedDescendantIds();
+    }
+
+    this._startCollapseAnimation(descendantIds, anchorNode, !isCollapsed);
+  }
+
+  /**
+   * Start a collapse or expand animation for the given descendant nodes.
+   * @param {string[]} descendantIds
+   * @param {{x: number, y: number}} anchorNode
+   * @param {boolean} isCollapsing
+   */
+  _startCollapseAnimation(descendantIds, anchorNode, isCollapsing) {
+    if (this._collapseAnimFrameId) {
+      cancelAnimationFrame(this._collapseAnimFrameId);
+      this._collapseAnimFrameId = null;
+    }
+
+    const duration = this.mergedOptions.collapseDuration ?? 300;
+
+    // Snapshot start positions
+    const startPositions = new Map();
+    for (const id of descendantIds) {
+      const current = this._animatedPositions.get(id);
+      const original = this.nodeIdToRenderedNodeMap.get(id);
+      const source = current || original;
+      if (source) {
+        startPositions.set(id, { x: source.x, y: source.y });
+      }
+    }
+
+    // Compute target positions
+    const targetPositions = new Map();
+    for (const id of descendantIds) {
+      if (isCollapsing) {
+        targetPositions.set(id, { x: anchorNode.x, y: anchorNode.y });
+      } else {
+        const original = this.nodeIdToRenderedNodeMap.get(id);
+        if (original) {
+          // Check if this node is a descendant of another still-collapsed node
+          const collapsedAnchor = this._findCollapsedAnchor(id);
+          if (collapsedAnchor) {
+            targetPositions.set(id, {
+              x: collapsedAnchor.x,
+              y: collapsedAnchor.y,
+            });
+          } else {
+            targetPositions.set(id, { x: original.x, y: original.y });
+          }
+        }
+      }
+    }
+
+    const startTime = performance.now();
+    this._isCollapseAnimating = true;
+
+    const animate = (/** @type {number} */ now) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const eased = easeInOutCubic(t);
+
+      for (const id of descendantIds) {
+        const start = startPositions.get(id);
+        const target = targetPositions.get(id);
+        if (start && target) {
+          this._animatedPositions.set(id, {
+            x: start.x + (target.x - start.x) * eased,
+            y: start.y + (target.y - start.y) * eased,
+          });
+        }
+      }
+
+      this._draw();
+
+      if (t < 1) {
+        this._collapseAnimFrameId = requestAnimationFrame(animate);
+      } else {
+        this._isCollapseAnimating = false;
+        this._collapseAnimFrameId = null;
+
+        // On expand complete, remove overrides for nodes at their original positions
+        // and re-include descendants in labeling
+        if (!isCollapsing) {
+          for (const id of descendantIds) {
+            const target = targetPositions.get(id);
+            const original = this.nodeIdToRenderedNodeMap.get(id);
+            if (
+              target &&
+              original &&
+              target.x === original.x &&
+              target.y === original.y
+            ) {
+              this._animatedPositions.delete(id);
+            }
+          }
+          this._rebuildCollapsedDescendantIds();
+        }
+
+        this._draw();
+      }
+    };
+
+    this._collapseAnimFrameId = requestAnimationFrame(animate);
+  }
+
+  /**
+   * Find if a node belongs to a still-collapsed ancestor's subtree.
+   * @param {string} nodeId
+   * @returns {{x: number, y: number}|null}
+   */
+  _findCollapsedAnchor(nodeId) {
+    if (this.collapsedNodeIds.size === 0) return null;
+
+    for (const collapsedId of this.collapsedNodeIds) {
+      const descendants = getDescendantIds(
+        collapsedId,
+        this.parentToChildrenNodeMap,
+      );
+      if (descendants.includes(nodeId)) {
+        return this.nodeIdToRenderedNodeMap.get(collapsedId) || null;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Rebuild _collapsedDescendantIds from current collapsedNodeIds.
+   */
+  _rebuildCollapsedDescendantIds() {
+    this._collapsedDescendantIds.clear();
+    for (const collapsedId of this.collapsedNodeIds) {
+      const descendants = getDescendantIds(
+        collapsedId,
+        this.parentToChildrenNodeMap,
+      );
+      for (const id of descendants) {
+        this._collapsedDescendantIds.add(id);
+      }
+    }
   }
 
   _render() {
@@ -600,6 +855,12 @@ export class CactusTree {
       },
       pannable: self.pannable,
       zoomable: self.zoomable,
+      onNodeClick: (/** @type {string} */ nodeId) =>
+        self._handleNodeClick(nodeId),
+      _mouseDownX: 0,
+      _mouseDownY: 0,
+      _touchStartX: 0,
+      _touchStartY: 0,
     };
 
     const handlers = createMouseHandlers(

@@ -170,15 +170,20 @@ export function createMouseMoveHandler(state, width, height, scheduleRender) {
 
 /**
  * Creates mouse down handler
- * @param {{ canvas: HTMLCanvasElement, isDragging: boolean, pannable: boolean, lastMouseX: number, lastMouseY: number }} state - Component state object
+ * @param {{ canvas: HTMLCanvasElement, isDragging: boolean, pannable: boolean, lastMouseX: number, lastMouseY: number, _mouseDownX: number, _mouseDownY: number }} state - Component state object
  * @returns {function(MouseEvent): void} Mouse down event handler
  */
 export function createMouseDownHandler(state) {
   return function handleMouseDown(/** @type {MouseEvent} */ event) {
+    const coords = getEventCoordinates(event, state.canvas);
+
+    // Record position for click detection
+    state._mouseDownX = coords.x;
+    state._mouseDownY = coords.y;
+
     if (!state.pannable) return;
 
     state.isDragging = true;
-    const coords = getEventCoordinates(event, state.canvas);
     state.lastMouseX = coords.x;
     state.lastMouseY = coords.y;
 
@@ -188,13 +193,34 @@ export function createMouseDownHandler(state) {
 }
 
 /**
- * Creates mouse up handler
- * @param {{ isDragging: boolean }} state - Component state object
- * @returns {function(): void} Mouse up event handler
+ * Creates mouse up handler with click detection
+ * @param {{ isDragging: boolean, canvas: HTMLCanvasElement, _mouseDownX: number, _mouseDownY: number, panX: number, panY: number, renderedNodes: any[], onNodeClick?: function(string): void }} state - Component state object
+ * @returns {function(MouseEvent): void} Mouse up event handler
  */
 export function createMouseUpHandler(state) {
-  return function handleMouseUp() {
+  return function handleMouseUp(/** @type {MouseEvent} */ event) {
     state.isDragging = false;
+
+    // Click detection: minimal movement from mousedown position
+    if (state._mouseDownX !== undefined && state.canvas && state.onNodeClick) {
+      const coords = getEventCoordinates(event, state.canvas);
+      const dx = coords.x - state._mouseDownX;
+      const dy = coords.y - state._mouseDownY;
+
+      if (dx * dx + dy * dy < 25) {
+        const transformedX = coords.x - state.panX;
+        const transformedY = coords.y - state.panY;
+        const clickedNodeId = findHoveredNode(
+          transformedX,
+          transformedY,
+          state.renderedNodes,
+        );
+
+        if (clickedNodeId !== null) {
+          state.onNodeClick(clickedNodeId);
+        }
+      }
+    }
   };
 }
 
@@ -260,6 +286,10 @@ export function createTouchStartHandler(
 
     if (touches.length === 1) {
       const coords = getEventCoordinates(touches[0], state.canvas);
+
+      // Record position for tap detection
+      state._touchStartX = coords.x;
+      state._touchStartY = coords.y;
 
       if (state.pannable) {
         // Single touch - start panning
@@ -329,14 +359,17 @@ export function createTouchMoveHandler(state, width, height, scheduleRender) {
 }
 
 /**
- * Creates touch end handler
- * @param {{ isDragging: boolean, touches: Touch[], lastTouchDistance: number, pannable: boolean, canvas: HTMLCanvasElement, lastMouseX: number, lastMouseY: number }} state - Component state object
+ * Creates touch end handler with tap detection
+ * @param {{ isDragging: boolean, touches: Touch[], lastTouchDistance: number, pannable: boolean, canvas: HTMLCanvasElement, lastMouseX: number, lastMouseY: number, _touchStartX: number, _touchStartY: number, panX: number, panY: number, renderedNodes: any[], onNodeClick?: function(string): void }} state - Component state object
  * @returns {function(TouchEvent): void} Touch end event handler
  */
 export function createTouchEndHandler(state) {
   return function handleTouchEnd(/** @type {TouchEvent} */ event) {
     event.preventDefault();
 
+    const changedTouches = event.changedTouches
+      ? Array.from(event.changedTouches)
+      : [];
     const touches = /** @type {Touch[]} */ (Array.from(event.touches));
     state.touches = touches;
 
@@ -344,6 +377,31 @@ export function createTouchEndHandler(state) {
       // No more touches
       state.isDragging = false;
       state.lastTouchDistance = 0;
+
+      // Tap detection: single touch ended with minimal movement
+      if (
+        changedTouches.length === 1 &&
+        state._touchStartX !== undefined &&
+        state.onNodeClick
+      ) {
+        const coords = getEventCoordinates(changedTouches[0], state.canvas);
+        const dx = coords.x - state._touchStartX;
+        const dy = coords.y - state._touchStartY;
+
+        if (dx * dx + dy * dy < 25) {
+          const transformedX = coords.x - state.panX;
+          const transformedY = coords.y - state.panY;
+          const tappedNodeId = findHoveredNode(
+            transformedX,
+            transformedY,
+            state.renderedNodes,
+          );
+
+          if (tappedNodeId !== null) {
+            state.onNodeClick(tappedNodeId);
+          }
+        }
+      }
     } else if (touches.length === 1) {
       // Down to one touch - reset for potential panning
       state.lastTouchDistance = 0;
@@ -363,7 +421,7 @@ export function createTouchEndHandler(state) {
  * @param {number} width - Canvas width
  * @param {number} height - Canvas height
  * @param {Function} scheduleRender - Function to schedule a re-render
- * @returns {{ onMouseMove: function(MouseEvent): void, onMouseDown: function(MouseEvent): void, onMouseUp: function(): void, onMouseLeave: function(): void, onWheel: function(WheelEvent): void, onTouchStart: function(TouchEvent): void, onTouchMove: function(TouchEvent): void, onTouchEnd: function(TouchEvent): void }} Object containing all mouse and touch event handlers
+ * @returns {{ onMouseMove: function(MouseEvent): void, onMouseDown: function(MouseEvent): void, onMouseUp: function(MouseEvent): void, onMouseLeave: function(): void, onWheel: function(WheelEvent): void, onTouchStart: function(TouchEvent): void, onTouchMove: function(TouchEvent): void, onTouchEnd: function(TouchEvent): void }} Object containing all mouse and touch event handlers
  */
 export function createMouseHandlers(
   /** @type {any} */ state,
