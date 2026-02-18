@@ -130,7 +130,7 @@ function handleHoverDetection(
       transformedX,
       transformedY,
       state.voronoiData,
-      state.leafHoverTolerance ?? 12,
+      state.leafHoverTolerance ?? 15,
     );
   }
 

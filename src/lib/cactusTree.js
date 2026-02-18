@@ -232,7 +232,7 @@ export class CactusTree {
 
     // Voronoi-based leaf hover
     /** @type {number} Extra hover radius (px in screen coords) added to each leaf's circle */
-    this.leafHoverTolerance = 12;
+    this.leafHoverTolerance = 15;
     /** @type {import('./voronoiHover.js').VoronoiData | null} */
     this._voronoiData = null;
 
