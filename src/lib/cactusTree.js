@@ -6,10 +6,17 @@
  */
 
 import { setupCanvas } from './canvasUtils.js';
-import { drawNodes } from './drawNode.js';
+import { drawNode } from './drawNode.js';
 import * as drawEdge from './drawEdge.js';
 import { drawConnectingLinks } from './drawLink.js';
-import { drawLabels, clearLabelLayoutCache } from './drawLabel.js';
+import {
+  clearLabelLayoutCache,
+  computeLabelLayout,
+  drawLabelConnectors,
+  drawPositionedLabel,
+  drawCenteredLabel,
+  getLabelStyle,
+} from './drawLabel.js';
 import { createMouseHandlers } from './mouseHandlers.js';
 import {
   calculateLayout,
@@ -500,18 +507,112 @@ export class CactusTree {
       return s;
     })();
 
-    // Draw all nodes in DFS order (keeps subtrees intact when overlapping)
-    drawNodes(
+    // Compute label layout upfront (simulated annealing, cached) so positions
+    // are available when we draw each node in DFS order.
+    const labelLayout = computeLabelLayout(
       this.ctx,
-      drawableNodes,
+      visibleNodes,
       this.leafNodes,
       this.hoveredNodeId,
+      nodeHighlightedIds,
       this.mergedStyle,
       this.depthStyleCache,
       this.negativeDepthNodes,
-      nodeHighlightedIds,
-      allEdgeNodeIds,
+      this.mergedOptions.numLabels,
+      this.panX,
+      this.panY,
     );
+
+    // Build per-node label lookup maps for O(1) access during the draw loop.
+    /** @type {Map<string, any>} nodeId -> labelData */
+    const labelDataByNodeId = new Map();
+    /** @type {Map<string, any>} nodeId -> nodeData (from nodesWithLabels) */
+    const labelNodeDataById = new Map();
+    if (labelLayout) {
+      for (const lbl of labelLayout.labels) {
+        labelDataByNodeId.set(lbl.nodeId, lbl);
+      }
+      for (const nd of labelLayout.nodesWithLabels) {
+        labelNodeDataById.set(nd.node.id, nd);
+      }
+    }
+
+    /**
+     * Draw the label for a single node immediately after its circle is drawn.
+     * @param {any} nodeData - entry from renderedNodes/drawableNodes
+     */
+    const drawNodeLabel = (nodeData) => {
+      if (!labelLayout) return;
+      const { node, depth, radius } = nodeData;
+      const labelData = labelDataByNodeId.get(node.id);
+      if (!labelData) return;
+      const nd = labelNodeDataById.get(node.id);
+      if (!nd) return;
+
+      const isHighlighted =
+        this.hoveredNodeId === node.id ||
+        (nodeHighlightedIds && nodeHighlightedIds.has(node.id));
+
+      if (labelData.isInside) {
+        const labelStyle = getLabelStyle(
+          depth,
+          node.id,
+          this.mergedStyle,
+          this.depthStyleCache,
+          this.negativeDepthNodes,
+        );
+        const text = String(node.name || node.id);
+        const minFS =
+          labelStyle.inner?.minFontSize ?? labelLayout.labelMinFontSize;
+        const maxFS =
+          labelStyle.inner?.maxFontSize ?? labelLayout.labelMaxFontSize;
+        drawCenteredLabel(
+          this.ctx,
+          text,
+          nd.x,
+          nd.y,
+          radius,
+          labelStyle,
+          minFS,
+          maxFS,
+          isHighlighted,
+          isHighlighted ? nd.highlightStyle : {},
+        );
+      } else {
+        drawPositionedLabel(
+          this.ctx,
+          labelData,
+          nd,
+          this.leafNodes,
+          this.mergedStyle,
+          this.depthStyleCache,
+          this.negativeDepthNodes,
+          isHighlighted,
+        );
+      }
+    };
+
+    // Draw nodes in DFS order, immediately followed by each node's label.
+    // This ensures labels of nodes drawn later (on top) also appear on top,
+    // so labels of occluded nodes are naturally hidden.
+    for (const nodeData of drawableNodes) {
+      const { x, y, radius, node, depth } = nodeData;
+      drawNode(
+        this.ctx,
+        x,
+        y,
+        radius,
+        node,
+        depth,
+        this.hoveredNodeId,
+        this.mergedStyle,
+        this.depthStyleCache,
+        this.negativeDepthNodes,
+        nodeHighlightedIds,
+        allEdgeNodeIds,
+      );
+      drawNodeLabel(nodeData);
+    }
 
     // Draw edges on top of all nodes
     drawEdge.drawEdges(
@@ -528,20 +629,29 @@ export class CactusTree {
       this.negativeDepthNodes,
     );
 
-    // Draw labels (collapsed descendants already excluded from visibleNodes)
-    drawLabels(
-      this.ctx,
-      visibleNodes,
-      this.leafNodes,
-      this.hoveredNodeId,
-      nodeHighlightedIds,
-      this.mergedStyle,
-      this.depthStyleCache,
-      this.negativeDepthNodes,
-      this.mergedOptions.numLabels,
-      this.panX,
-      this.panY,
-    );
+    // Draw label connectors (leader lines) using destination-over compositing
+    // so they appear behind all nodes and labels.
+    if (labelLayout && labelLayout.links && labelLayout.links.length > 0) {
+      let connectorHighlightIds = null;
+      if (this.hoveredNodeId) {
+        connectorHighlightIds = new Set();
+        connectorHighlightIds.add(this.hoveredNodeId);
+        if (nodeHighlightedIds) {
+          for (const id of nodeHighlightedIds) {
+            connectorHighlightIds.add(id);
+          }
+        }
+      }
+      drawLabelConnectors(
+        this.ctx,
+        labelLayout.links,
+        this.mergedStyle,
+        labelLayout.nodesWithLabels,
+        this.depthStyleCache,
+        this.negativeDepthNodes,
+        connectorHighlightIds,
+      );
+    }
 
     this.ctx.restore();
   }
