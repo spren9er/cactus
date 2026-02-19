@@ -2,7 +2,7 @@
   "node": {
     "fillColor": "transparent",
     "strokeColor": "#efefef",
-    "strokeWidth": 0
+    "strokeWidth": 1
   },
   "edge": {
     "strokeColor": "#333333",

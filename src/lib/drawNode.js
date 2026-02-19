@@ -266,7 +266,7 @@ export function drawNode(
 ) {
   if (!ctx) return false;
 
-  if (radius < 1) return false;
+  if (radius <= 0.1) return false;
 
   const style = /** @type {any} */ (
     calculateNodeStyle(
@@ -285,9 +285,12 @@ export function drawNode(
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
 
   const fillNeeded = style.fill !== 'none' && (style.fillOpacity ?? 1) > 0;
+  const rawStrokeWidth = style.strokeWidth ?? 0;
+  const effectiveStrokeWidth =
+    rawStrokeWidth > radius ? rawStrokeWidth / 2 : rawStrokeWidth;
   const strokeNeeded =
     style.stroke !== 'none' &&
-    (style.strokeWidth ?? 0) > 0 &&
+    effectiveStrokeWidth > 0 &&
     (style.strokeOpacity ?? 1) > 0;
 
   if (
@@ -298,7 +301,7 @@ export function drawNode(
     setCanvasStyles(ctx, {
       fillStyle: style.fill,
       strokeStyle: style.stroke,
-      lineWidth: style.strokeWidth,
+      lineWidth: effectiveStrokeWidth,
       globalAlpha: style.fillOpacity ?? 1,
     });
     ctx.fill();
@@ -314,7 +317,7 @@ export function drawNode(
     if (strokeNeeded) {
       setCanvasStyles(ctx, {
         strokeStyle: style.stroke,
-        lineWidth: style.strokeWidth,
+        lineWidth: effectiveStrokeWidth,
         globalAlpha: style.strokeOpacity ?? 1,
       });
       ctx.stroke();

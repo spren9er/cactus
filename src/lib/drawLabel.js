@@ -361,7 +361,7 @@ export function shouldShowLabel(
   labelStyleWrapper,
   highlightedNodeIds = null,
 ) {
-  if (radius < 1) {
+  if (radius <= 0.1) {
     // Allow labels for tiny leaf nodes that are highlighted via edges
     if (
       hoveredNodeId !== null &&
